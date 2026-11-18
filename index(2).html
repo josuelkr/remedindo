@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>REMEdindo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: abas (pesquisa | painel). Painel: indicadores com margem de erro -> conclusões com nível de confiança -> gráficos -> comentários -> limites */
+:root{
+  --bg:#F3F6F8; --surface:#FFFFFF; --ink:#13233A; --muted:#5B6B7E; --line:#DCE3EA;
+  --accent:#0B6E79; --accent-soft:#DDF0F1;
+  --good:#2E8B57; --warn:#B57A0C; --bad:#C2413B; --faint:#E9EEF2;
+  --display:"Sora",system-ui,sans-serif; --body:"Source Sans 3",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0F1822; --surface:#172331; --ink:#E6EDF4; --muted:#93A3B5; --line:#2A3A4C;
+  --accent:#3FB7C2; --accent-soft:#183A42; --good:#5CC48A; --warn:#E3B04B; --bad:#EE7A73; --faint:#1E2C3B; color-scheme:dark; }}
+:root[data-theme="dark"]{
+  --bg:#0F1822; --surface:#172331; --ink:#E6EDF4; --muted:#93A3B5; --line:#2A3A4C;
+  --accent:#3FB7C2; --accent-soft:#183A42; --good:#5CC48A; --warn:#E3B04B; --bad:#EE7A73; --faint:#1E2C3B; color-scheme:dark; }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;margin:0}
+.wrap{max-width:1160px;margin:0 auto;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:20px}
+h1{font-family:var(--display);font-size:28px;margin:0;letter-spacing:-.01em}
+h1 span{color:var(--accent)}
+.sub{color:var(--muted);margin:2px 0 0}
+h2{font-family:var(--display);font-size:17px;margin:0 0 4px;text-wrap:balance}
+h3{font-family:var(--display);font-size:14px;margin:0 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.lede{color:var(--muted);font-size:14px;margin:0 0 12px}
+.tabs{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px;flex-wrap:wrap}
+.tabs button{font:600 15px var(--body);border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:7px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:#fff}
+button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.view{display:none}.view.on{display:block}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+.note{font-size:13px;color:var(--muted);margin:8px 0 0}
+.chip{display:inline-block;font-size:13px;font-weight:600;padding:1px 9px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.positivo{color:var(--good)}.neutro{color:var(--warn)}.negativo{color:var(--bad)}
+.tema{color:var(--accent)}
+.muted{color:var(--muted)}
+textarea,select{width:100%;font:16px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px}
+textarea{min-height:88px;resize:vertical}
+label{font-size:14px;color:var(--muted);display:block;margin-bottom:4px}
+.btn{font:600 16px var(--body);background:var(--accent);color:#fff;border:0;border-radius:9px;padding:12px;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.ghost{font:600 14px var(--body);background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:6px 10px;cursor:pointer}
+
+/* pesquisa */
+.survey{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:20px;align-items:start}
+.left{display:flex;flex-direction:column;gap:12px}
+.linkbox{border:1px dashed var(--line);border-radius:12px;padding:14px;background:var(--surface);display:flex;flex-direction:column;gap:8px}
+.linkbox .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kv{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px}
+.kv b{font-variant-numeric:tabular-nums}
+.phone{border:10px solid var(--ink);border-radius:30px;padding:22px 18px;background:var(--surface);display:flex;flex-direction:column;gap:14px}
+.phone .brand{font:700 13px var(--display);color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+.phone p.q{font-weight:600;margin:0}
+.scale{display:grid;grid-template-columns:repeat(11,1fr);gap:3px}
+.scale button{font:600 14px var(--body);padding:8px 0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;cursor:pointer}
+.scale button.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.right{display:flex;flex-direction:column;gap:14px;min-width:0}
+.examples{display:flex;flex-wrap:wrap;gap:6px}
+.examples button{font:14px var(--body);background:var(--bg);border:1px dashed var(--line);color:var(--ink);border-radius:8px;padding:6px 9px;cursor:pointer;text-align:left}
+.result{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:14px}
+.result .k{font-size:13px;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+
+/* painel */
+.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:16px}
+.filters>div{min-width:210px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.kpi .l{color:var(--muted);font-size:14px}
+.kpi .v{font:700 30px var(--display);font-variant-numeric:tabular-nums;line-height:1.2}
+.kpi .ci{font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums}
+.kpi .h{font-size:13px;color:var(--muted);margin-top:4px}
+.concl{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;margin-bottom:16px}
+.items{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.items li{display:grid;grid-template-columns:84px 1fr;gap:10px;align-items:start}
+.items li p{margin:0}
+.items .det{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.lvl{font:700 12px var(--body);text-transform:uppercase;letter-spacing:.05em;padding:3px 0;border-radius:6px;text-align:center}
+.lvl.firme{background:var(--accent);color:#fff}
+.lvl.indicio{border:1.5px dashed var(--accent);color:var(--accent)}
+.lvl.nao{border:1.5px solid var(--line);color:var(--muted)}
+.lvl.cuidado{border:1.5px solid var(--warn);color:var(--warn)}
+.side{display:flex;flex-direction:column;gap:16px;border-left:1px solid var(--line);padding-left:18px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px}
+svg text{fill:var(--muted);font:12px var(--body)}
+svg .lab{fill:var(--ink);font-weight:600}
+.bars{display:flex;flex-direction:column;gap:8px}
+.tbar{display:grid;grid-template-columns:minmax(0,180px) 1fr 44px;gap:8px;align-items:center;font-size:14px;background:transparent;border:0;color:inherit;font-family:inherit;text-align:left;padding:4px;border-radius:6px;cursor:pointer}
+.tbar:hover,.tbar[aria-pressed="true"]{background:var(--faint)}
+.tbar small{display:block;color:var(--muted);font-size:12px}
+.track{height:14px;background:var(--bg);border:1px solid var(--line);border-radius:4px;overflow:hidden;display:flex}
+.track i{display:block;height:100%}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--muted);margin-top:10px;flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;background:var(--c)}
+.amostra{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.amostra div{font-size:14px;background:var(--bg);border-radius:6px;padding:6px 10px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600}
+td.cod{white-space:nowrap;font-variant-numeric:tabular-nums}
+td.n{font-variant-numeric:tabular-nums;text-align:right}
+tr.new td{background:var(--accent-soft)}
+.low{color:var(--warn);font-weight:600}
+.limits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.limits ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.toggle{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);margin:0}
+.toggle input{width:auto}
+@media (max-width:860px){
+  .survey,.grid2,.concl,.limits{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .side{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:16px}
+  .tbar{grid-template-columns:minmax(0,130px) 1fr 40px}
+}
+@media (max-width:420px){ .kpis{grid-template-columns:1fr} .items li{grid-template-columns:1fr;gap:4px} .lvl{justify-self:start;padding:3px 8px} }
+</style>
+
+<div class="wrap">
+<header>
+  <div>
+    <h1>REMEd<span>indo</span></h1>
+    <p class="sub">Satisfação do paciente: nota, comentário e um classificador simples · protótipo com dados fictícios</p>
+  </div>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="t-pesquisa" aria-selected="false" data-v="pesquisa">1 · Pesquisa do paciente</button>
+    <button role="tab" id="t-painel" aria-selected="true" data-v="painel">2 · Painel do gestor</button>
+  </div>
+</header>
+
+<!-- ================= PESQUISA ================= -->
+<section class="view" id="v-pesquisa">
+  <div class="survey">
+    <div class="left">
+      <div class="linkbox">
+        <strong style="font-size:14px">Dados que chegam pelo link ou QR code</strong>
+        <div class="row2">
+          <div><label for="lUnid">Unidade</label><select id="lUnid"></select></div>
+          <div><label for="lTipo">Tipo de atendimento</label><select id="lTipo"></select></div>
+        </div>
+        <div class="kv" id="lInfo"></div>
+        <p class="note" style="margin:0">O paciente não digita nada disso. O código liga a resposta ao atendimento e permite saber, depois, se ele voltou.</p>
+      </div>
+      <form class="phone" id="form">
+        <div class="brand">Sua opinião · 30 segundos</div>
+        <div>
+          <p class="q">De 0 a 10, quanto você recomendaria este serviço a um amigo ou familiar?</p>
+          <div class="scale" id="scale"></div>
+          <div class="ends"><span>Nada provável</span><span>Muito provável</span></div>
+        </div>
+        <div>
+          <label for="coment">O que mais pesou na sua nota?</label>
+          <textarea id="coment" placeholder="Escreva com suas palavras…"></textarea>
+        </div>
+        <button class="btn" id="enviar" type="submit" disabled>Enviar resposta</button>
+      </form>
+    </div>
+    <div class="right">
+      <div class="card">
+        <h2>Teste com um comentário pronto</h2>
+        <p class="lede">Clique para preencher a nota e o comentário.</p>
+        <div class="examples" id="examples"></div>
+      </div>
+      <div class="card">
+        <h2>O que o classificador devolve</h2>
+        <div id="result"><p class="note" style="margin:0">Envie uma resposta para ver os temas, o sentimento e a confiança. Comentários com confiança abaixo de 70% vão para a fila de revisão humana.</p></div>
+      </div>
+      <div class="card">
+        <h2>Como o classificador funciona</h2>
+        <p class="lede" style="margin:0">Neste protótipo, o classificador procura palavras-chave por tema e cruza o resultado com a nota. Na versão real entra um modelo treinado (TF-IDF com regressão logística, como no estudo com a base B2W) e reavaliado todo mês numa amostra lida por uma pessoa. O comentário pode receber até dois temas.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PAINEL ================= -->
+<section class="view on" id="v-painel">
+  <div class="filters">
+    <div><label for="fUnid">Unidade</label><select id="fUnid"></select></div>
+    <div><label for="fPer">Período</label><select id="fPer"><option value="todo">Jun a out/2026</option><option value="3m">Ago a out/2026</option></select></div>
+  </div>
+
+  <div class="kpis">
+    <div class="card kpi"><div class="l">Respostas</div><div class="v" id="kN"></div><div class="h" id="kNh"></div></div>
+    <div class="card kpi"><div class="l">NPS (−100 a 100)</div><div class="v" id="kNps"></div><div class="ci" id="kNpsCi"></div><div class="h">margem de erro de 95%</div></div>
+    <div class="card kpi"><div class="l">Respostas com reclamação</div><div class="v" id="kNeg"></div><div class="ci" id="kNegCi"></div><div class="h">segundo o classificador</div></div>
+    <div class="card kpi"><div class="l">Acerto do classificador</div><div class="v" id="kIa"></div><div class="h" id="kIah"></div></div>
+  </div>
+
+  <div class="card concl">
+    <div>
+      <h2>O que os dados mostram</h2>
+      <p class="lede">Conclusões geradas por regras simples: cada uma compara dois grupos e só aparece se a diferença passar num teste estatístico.</p>
+      <ul class="items" id="achados"></ul>
+      <p class="note" id="nTestes"></p>
+    </div>
+    <div class="side">
+      <div><h3>Ainda não dá para afirmar</h3><ul class="items" id="naoDa"></ul></div>
+      <div><h3>Cuidados com estes dados</h3><ul class="items" id="cuidados"></ul></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>NPS por unidade</h2>
+      <p class="lede">O ponto é o NPS; a barra é a margem de erro. Barras que se sobrepõem indicam que a diferença pode ser acaso.</p>
+      <div id="forest"></div>
+    </div>
+    <div class="card">
+      <h2>NPS por mês</h2>
+      <p class="lede">A faixa sombreada é a margem de erro. Meses com menos de 30 respostas aparecem com ponto vazado.</p>
+      <div id="linha"></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Do que os pacientes falam</h2>
+      <p class="lede">Um comentário pode citar até dois temas. Clique num tema para ler exemplos.</p>
+      <div class="bars" id="temas"></div>
+      <div class="legend"><span style="--c:var(--bad)">reclamação</span><span style="--c:var(--warn)">neutro</span><span style="--c:var(--good)">elogio</span></div>
+      <div class="amostra" id="amostra"></div>
+    </div>
+    <div class="card">
+      <h2>Quem volta ao serviço</h2>
+      <p class="lede">Os dois tipos de retorno são lidos separadamente: voltar para uma consulta é bom sinal, voltar para a urgência em poucos dias, não.</p>
+      <h3 style="margin-top:6px">Atendimento eletivo · voltou em até 90 dias</h3>
+      <div id="retEletivo"></div>
+      <h3 style="margin-top:16px">Urgência · voltou à urgência em até 7 dias</h3>
+      <div id="retUrg"></div>
+      <p class="note">Associação, não causa: a nota não faz o paciente voltar. Serve para acompanhar e cruzar com o resto.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2 style="margin:0">Comentários mais recentes</h2>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <label class="toggle" for="soBaixa"><input type="checkbox" id="soBaixa"> Só os de confiança abaixo de 70%</label>
+        <button class="ghost" id="copyCsv" type="button">Copiar base em CSV</button>
+      </div>
+    </div>
+    <div class="tablewrap" style="margin-top:10px">
+      <table><thead><tr><th>Data</th><th>Código</th><th>Unidade</th><th class="n">Nota</th><th>Comentário</th><th>Temas (IA)</th><th>Sentimento</th><th class="n">Confiança</th></tr></thead><tbody id="tabela"></tbody></table>
+    </div>
+  </div>
+
+  <div class="card limits">
+    <div>
+      <h2>O painel responde</h2>
+      <ul>
+        <li>Como está a satisfação (NPS) e com que margem de erro.</li>
+        <li>Quais temas concentram reclamações, por unidade e por faixa etária.</li>
+        <li>Se uma unidade ou um grupo de pacientes está diferente dos demais.</li>
+        <li>Se a satisfação mudou de um período para outro.</li>
+        <li>Se nota e retorno andam juntos, e se quem reclama volta à urgência.</li>
+        <li>Quanto confiar no classificador e quais comentários precisam ser lidos.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>O painel não responde</h2>
+      <ul>
+        <li>Por que o problema acontece. Ele aponta onde olhar, e a causa se descobre na unidade.</li>
+        <li>O que pensa quem não respondeu.</li>
+        <li>Avaliação de profissionais individuais, de propósito.</li>
+        <li>Diferenças em grupos com poucas respostas.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</div>
+
+<script>
+const DB = {"campos":["data","turno","unidade","tipo","faixa","canal","nota","comentario","temas_ia","sent_ia","confianca_ia","voltou_90d","voltou_urg_7d","revisao_humana"],"unidades":["UBS Centro","Pronto Atendimento Sul","Clínica de Especialidades"],"tipos":["Consulta","Retorno","Exame","Vacinação","Urgência"],"faixas":["18-29","30-44","45-59","60+"],"turnos":["manhã","tarde","noite"],"canais":["QR code","WhatsApp"],"temas":["Tempo de espera","Cordialidade da equipe","Explicação recebida","Agendamento","Limpeza e estrutura"],"sentimentos":["negativo","neutro","positivo"],"atendimentos":{"UBS Centro":{"2026-06":1599,"2026-07":1494,"2026-08":1500,"2026-09":1411,"2026-10":1592},"Pronto Atendimento Sul":{"2026-06":1189,"2026-07":1149,"2026-08":1186,"2026-09":1156,"2026-10":1209},"Clínica de Especialidades":{"2026-06":606,"2026-07":650,"2026-08":656,"2026-09":675,"2026-10":622}},"hoje":"2026-11-18","linhas":[["2026-06-01",0,2,2,3,1,2,"Fui tratado com descaso.",[3],0,68,0,null,null],["2026-06-01",0,2,2,1,0,4,"Saí sem saber como tomar a medicação. Muito tempo de espera e nenhuma previsão.",[0,2],0,80,0,null,null],["2026-06-02",0,0,1,1,1,9,"A enfermeira foi muito atenciosa comigo.",[1],2,75,1,null,null],["2026-06-02",0,2,0,3,0,9,"O médico explicou tudo com calma.",[2],2,91,0,null,null],["2026-06-02",1,2,0,3,0,10,"Sala de espera confortável e limpa.",[4],1,67,1,null,null],["2026-06-02",0,2,0,3,0,10,"Consegui marcar pelo WhatsApp fácil.",[3],2,81,0,null,null],["2026-06-03",0,0,0,1,0,10,"Atendimento normal, sem nada de especial. Fui atendido rapidinho.",[0],2,76,1,null,null],["2026-06-03",2,1,0,2,1,2,"Banheiro limpinho, estrutura boa. Saí sem saber como tomar a medicação.",[4],0,65,1,null,null],["2026-06-03",1,2,2,3,1,6,"O sistema de agendamento vive fora do ar.",[3],1,67,0,null,null],["2026-06-04",1,0,3,2,1,9,"Fui atendido rapidinho.",[0],2,81,0,null,[[0],2]],["2026-06-04",1,1,4,1,0,4,"Fila enorme e ninguém informava nada.",[0,1],0,81,null,0,null],["2026-06-05",0,0,3,2,0,8,"Sala de espera confortável e limpa.",[4],2,88,1,null,[[4],2]],["2026-06-05",0,1,4,1,1,7,"A recepcionista foi grossa e impaciente.",[1],0,98,null,0,null],["2026-06-05",2,1,4,1,0,8,"Ninguém olhava na minha cara.",[1,2],1,45,null,0,null],["2026-06-05",0,2,1,2,0,10,"Tiraram todas as minhas dúvidas.",[4],2,80,0,null,null],["2026-06-05",0,2,0,0,0,6,"Explicação confusa, cheia de termo técnico. Consegui marcar pelo WhatsApp fácil.",[2,3],0,88,0,null,null],["2026-06-06",0,0,3,1,0,10,"Sala de espera confortável e limpa.",[4],2,80,0,null,null],["2026-06-06",0,0,0,0,0,9,"Estrutura simples, mas funciona. A enfermeira foi muito atenciosa comigo.",[4],2,57,1,null,null],["2026-06-06",0,0,0,0,1,3,"Esperei mais de 3 horas para ser atendido. O agendamento funcionou, mas é burocrático.",[0,3],0,79,0,null,null],["2026-06-06",1,1,4,1,0,9,"Chegou minha vez no horário marcado.",[0],2,84,null,0,[[0],2]],["2026-06-06",1,2,0,3,0,10,"Agendamento simples e rápido.",[3],1,68,1,null,null],["2026-06-06",0,2,2,3,0,5,"Fui tratado com descaso. Chegou minha vez no horário marcado.",[0,1],1,51,0,null,null],["2026-06-07",1,0,0,1,1,8,"A enfermeira foi muito atenciosa comigo. Esperei pouco, tudo bem organizado.",[0,1],2,84,0,null,null],["2026-06-07",0,1,0,1,0,8,"Me ligaram para confirmar a consulta, gostei.",[3],2,95,0,null,null],["2026-06-07",1,1,4,2,1,4,"Banheiro limpinho, estrutura boa. Fui tratado com descaso.",[1,4],0,74,null,0,null],["2026-06-07",1,1,4,3,1,9,"Sala de espera confortável e limpa. O médico me tratou com muito respeito.",[1,4],2,92,null,0,[[1,4],2]],["2026-06-07",0,2,2,2,1,9,"O médico explicou tudo com calma.",[2],2,87,0,null,[[2],2]],["2026-06-07",0,2,0,3,1,3,"Demorou dois meses pra conseguir vaga.",[3],0,88,0,null,null],["2026-06-08",0,0,0,0,1,9,"Banheiro limpinho, estrutura boa. A enfermeira foi muito atenciosa comigo.",[1,4],2,97,1,null,null],["2026-06-08",2,1,4,3,0,9,"Fui atendido rapidinho. Estrutura simples, mas funciona.",[0,4],2,93,null,0,null],["2026-06-08",2,1,4,0,0,10,"A enfermeira foi muito atenciosa comigo.",[4],2,48,null,0,null],["2026-06-08",1,1,4,1,0,3,"Falta bebedouro para os pacientes.",[4],0,85,null,0,null],["2026-06-08",1,2,2,2,0,5,"Consulta muito rápida, não deu pra perguntar nada.",[2],0,81,0,null,[[2],0]],["2026-06-09",0,0,1,3,0,5,"Demora absurda, quase fui embora sem ser chamado. Tiraram todas as minhas dúvidas.",[0,1],1,51,0,null,null],["2026-06-09",0,1,4,1,1,6,"Demora absurda, quase fui embora sem ser chamado.",[0],0,85,null,0,null],["2026-06-09",0,1,4,1,0,2,"Passei a manhã inteira esperando com dor.",[0,4],0,63,null,0,null],["2026-06-09",0,1,4,3,0,3,"Passei a manhã inteira esperando com dor.",[0,4],0,59,null,0,null],["2026-06-09",0,2,1,1,0,8,"Estrutura simples, mas funciona. Chegou minha vez no horário marcado.",[0,4],1,82,0,null,null],["2026-06-09",0,2,0,3,0,9,"Chegou minha vez no horário marcado.",[0,1],2,80,0,null,null],["2026-06-10",0,0,1,1,0,8,"Equipe educada e carinhosa com minha mãe. Tiraram todas as minhas dúvidas.",[1,2],2,86,1,null,null],["2026-06-10",0,1,0,0,1,2,"Falta bebedouro para os pacientes.",[1,4],1,48,0,null,null],["2026-06-10",0,1,4,3,1,3,"Saí sem saber como tomar a medicação.",[2,3],0,65,null,0,null],["2026-06-10",0,2,2,3,1,1,"Saí sem saber como tomar a medicação.",[2],0,96,0,null,null],["2026-06-10",0,2,0,1,1,4,"Ninguém olhava na minha cara.",[1],1,47,0,null,[[1],0]],["2026-06-10",1,2,0,3,0,4,"Banheiro limpinho, estrutura boa. O sistema de agendamento vive fora do ar.",[3,4],0,94,0,null,null],["2026-06-10",0,2,0,2,1,2,"Demorou dois meses pra conseguir vaga. Atendimento normal, sem nada de especial.",[1,3],1,46,1,null,[[1,3],0]],["2026-06-11",0,2,0,1,1,6,"Liguei dez vezes e ninguém atende para marcar.",[3],0,92,0,null,null],["2026-06-11",0,2,0,3,0,10,"Tiraram todas as minhas dúvidas. Fui atendido rapidinho.",[0,2],2,90,0,null,null],["2026-06-12",1,1,0,3,0,8,"Entendi mais ou menos o que fazer.",[1,2],0,76,1,null,null],["2026-06-12",2,1,4,2,1,5,"Saí sem saber como tomar a medicação. Fui atendido rapidinho.",[0],0,79,null,1,null],["2026-06-12",0,1,0,3,1,0,"Esperei mais de 3 horas para ser atendido.",[0],1,48,0,null,[[0],0]],["2026-06-12",1,1,4,0,0,8,"Banheiro limpinho, estrutura boa.",[0],2,80,null,0,null],["2026-06-12",2,1,4,3,1,2,"Falta bebedouro para os pacientes.",[4],0,83,null,1,null],["2026-06-12",0,2,2,1,1,10,"Fui atendido rapidinho.",[0],2,77,1,null,null],["2026-06-12",0,2,0,1,0,9,"Saí entendendo direitinho como tomar o remédio.",[2],2,72,0,null,[[2],2]],["2026-06-13",1,0,0,3,1,6,"Explicaram o básico.",[2],1,90,0,null,null],["2026-06-13",1,1,4,1,0,10,"Chegou minha vez no horário marcado.",[0],2,83,null,0,null],["2026-06-13",1,1,4,2,1,9,"Consegui marcar pelo WhatsApp fácil.",[3],2,76,null,1,null],["2026-06-13",1,2,0,0,1,8,"O médico explicou tudo com calma.",[2],2,89,0,null,null],["2026-06-13",0,2,0,2,1,9,"Fui atendido rapidinho. Consegui marcar pelo WhatsApp fácil.",[0,3],2,85,1,null,null],["2026-06-13",0,2,1,3,1,9,"Esperei pouco, tudo bem organizado.",[0],2,96,1,null,null],["2026-06-14",0,0,1,2,1,2,"Esperei mais de 3 horas para ser atendido.",[0],0,73,0,null,null],["2026-06-14",0,0,3,2,0,8,"Banheiro limpinho, estrutura boa.",[4],2,88,0,null,null],["2026-06-14",0,0,1,2,1,10,"O médico me tratou com muito respeito. Banheiro limpinho, estrutura boa.",[1,4],2,90,1,null,null],["2026-06-14",2,1,4,0,1,8,"Equipe correta, só isso.",[1],1,74,null,0,[[1],1]],["2026-06-14",2,1,4,0,0,7,"Saí sem saber como tomar a medicação.",[1,2],0,69,null,0,null],["2026-06-15",1,0,0,3,1,3,"Banheiro limpinho, estrutura boa. Demora absurda, quase fui embora sem ser chamado.",[0,4],0,87,1,null,null],["2026-06-15",0,1,4,2,1,7,"Esperei mais de 3 horas para ser atendido. Sala de espera confortável e limpa.",[0,4],0,74,null,0,null],["2026-06-15",0,1,4,3,1,4,"O sistema de agendamento vive fora do ar.",[3],0,87,null,0,null],["2026-06-15",1,2,0,3,1,2,"Demora absurda, quase fui embora sem ser chamado.",[0],0,89,1,null,null],["2026-06-15",1,2,2,2,1,10,"O médico me tratou com muito respeito.",[1],2,72,0,null,null],["2026-06-15",1,2,2,3,1,8,"Estrutura simples, mas funciona.",[4],1,80,1,null,null],["2026-06-16",0,0,0,1,1,1,"Explicação confusa, cheia de termo técnico.",[0],0,55,0,null,null],["2026-06-16",0,0,0,0,1,9,"Sala de espera confortável e limpa. O médico explicou tudo com calma.",[2,4],2,85,0,null,[[2,4],2]],["2026-06-16",0,1,4,1,0,6,"Explicaram o básico.",[2],1,86,null,0,null],["2026-06-16",0,1,4,1,0,4,"Ninguém me explicou o resultado do exame.",[2],0,77,null,0,[[2],0]],["2026-06-16",0,1,4,0,1,8,"Me ligaram para confirmar a consulta, gostei.",[3],2,90,null,0,null],["2026-06-16",0,1,4,1,1,4,"Fila enorme e ninguém informava nada.",[0],0,89,null,0,[[0],0]],["2026-06-16",0,1,4,0,0,6,"Muito tempo de espera e nenhuma previsão.",[0],0,74,null,0,[[0],0]],["2026-06-16",1,2,0,0,0,10,"O médico me tratou com muito respeito.",[1],2,93,0,null,null],["2026-06-16",1,2,2,1,0,9,"Chegou minha vez no horário marcado.",[3],2,45,1,null,null],["2026-06-16",0,2,2,3,0,4,"Ninguém olhava na minha cara.",[0],0,47,1,null,[[1],0]],["2026-06-16",0,2,0,3,0,1,"Passei a manhã inteira esperando com dor. Banheiro limpinho, estrutura boa.",[0,4],1,73,0,null,null],["2026-06-17",1,0,2,2,1,9,"Me ligaram para confirmar a consulta, gostei.",[3],2,93,1,null,null],["2026-06-17",1,0,1,1,0,8,"Chegou minha vez no horário marcado.",[0],2,97,1,null,null],["2026-06-17",2,1,4,3,1,9,"Equipe educada e carinhosa com minha mãe.",[1],2,90,null,0,null],["2026-06-17",2,1,4,1,1,2,"Passei a manhã inteira esperando com dor.",[0],1,82,null,0,null],["2026-06-17",0,1,0,1,0,9,"Banheiro limpinho, estrutura boa.",[4],2,95,1,null,null],["2026-06-17",2,1,4,1,1,5,"Saí sem saber como tomar a medicação. Fila enorme e ninguém informava nada.",[0,2],0,82,null,0,[[0,2],0]],["2026-06-17",0,2,2,3,0,8,"Explicaram o básico.",[2],1,85,1,null,[[2],1]],["2026-06-17",0,2,0,3,1,7,"A espera foi razoável.",[0,1],1,65,1,null,null],["2026-06-18",0,1,4,2,0,5,"Fila enorme e ninguém informava nada.",[0],0,89,null,0,null],["2026-06-18",0,1,4,1,0,6,"Banheiro sujo e sem papel.",[4],0,75,null,0,[[4],0]],["2026-06-18",2,1,4,2,1,4,"Demora absurda, quase fui embora sem ser chamado.",[0],0,93,null,0,null],["2026-06-18",0,1,0,2,1,1,"Demora absurda, quase fui embora sem ser chamado.",[0],0,88,0,null,null],["2026-06-18",1,2,2,3,0,5,"Demorou dois meses pra conseguir vaga.",[3],0,81,1,null,null],["2026-06-19",0,2,2,3,0,3,"Cadeiras quebradas na sala de espera.",[4],0,89,1,null,null],["2026-06-20",0,0,3,3,0,7,"Esperei pouco, tudo bem organizado. O sistema de agendamento vive fora do ar.",[0,2],0,58,0,null,null],["2026-06-20",1,1,4,2,0,9,"Sala de espera confortável e limpa.",[4],2,75,null,0,[[4],2]],["2026-06-20",0,1,4,2,1,5,"Banheiro sujo e sem papel. Demora absurda, quase fui embora sem ser chamado.",[0,4],0,76,null,0,[[0,4],0]],["2026-06-20",2,1,0,2,0,4,"Ninguém me explicou o resultado do exame. Passei a manhã inteira esperando com dor.",[0,2],1,80,0,null,null],["2026-06-20",2,1,4,1,1,4,"Demora absurda, quase fui embora sem ser chamado.",[0],0,75,null,0,null],["2026-06-20",1,2,1,2,0,2,"Consulta muito rápida, não deu pra perguntar nada.",[2],0,75,1,null,null],["2026-06-21",0,0,3,3,1,9,"Tiraram todas as minhas dúvidas.",[2],2,76,0,null,null],["2026-06-21",0,0,0,1,0,3,"Consulta muito rápida, não deu pra perguntar nada.",[2],0,77,0,null,null],["2026-06-22",0,0,1,1,0,8,"O médico me tratou com muito respeito.",[4],2,68,1,null,null],["2026-06-22",0,1,0,2,1,1,"Demora absurda, quase fui embora sem ser chamado.",[0],0,93,1,null,null],["2026-06-22",0,2,2,3,0,5,"Ar-condicionado não funciona, muito calor.",[4],0,96,0,null,null],["2026-06-22",0,2,0,3,1,5,"O sistema de agendamento vive fora do ar.",[2,3],0,79,0,null,null],["2026-06-22",0,2,2,2,0,4,"O sistema de agendamento vive fora do ar.",[3],0,85,0,null,null],["2026-06-23",0,0,2,3,0,9,"Tiraram todas as minhas dúvidas.",[2],2,94,1,null,null],["2026-06-23",0,1,4,3,0,8,"A enfermeira foi muito atenciosa comigo.",[1],2,81,null,0,null],["2026-06-23",1,1,4,1,1,9,"O médico me tratou com muito respeito.",[0,1],2,57,null,0,null],["2026-06-23",0,1,4,1,0,4,"Cadeiras quebradas na sala de espera.",[4],0,75,null,0,[[4],0]],["2026-06-23",1,2,0,1,0,3,"Demora absurda, quase fui embora sem ser chamado.",[0],1,66,0,null,null],["2026-06-24",2,1,4,1,1,6,"Estrutura simples, mas funciona. A recepcionista foi grossa e impaciente.",[1,4],0,89,null,0,null],["2026-06-24",0,1,4,2,1,3,"Demora absurda, quase fui embora sem ser chamado. A enfermeira foi muito atenciosa comigo.",[0,1],0,74,null,0,null],["2026-06-24",0,1,0,0,1,8,"Banheiro limpinho, estrutura boa.",[4],2,72,0,null,null],["2026-06-24",0,1,4,2,0,8,"Demorou um pouco, mas deu pra aguentar.",[0],1,82,null,0,null],["2026-06-24",0,2,0,2,1,4,"Saí sem saber como tomar a medicação.",[2],0,82,0,null,null],["2026-06-24",1,2,0,1,1,10,"Chegou minha vez no horário marcado.",[0,1],2,68,0,null,null],["2026-06-25",0,0,1,2,0,8,"Equipe educada e carinhosa com minha mãe.",[1],2,97,0,null,null],["2026-06-25",1,1,0,0,1,9,"Sala de espera confortável e limpa.",[4],2,76,0,null,null],["2026-06-25",1,1,4,0,1,5,"Demora absurda, quase fui embora sem ser chamado. Banheiro limpinho, estrutura boa.",[0,4],0,88,null,0,null],["2026-06-26",0,0,0,3,1,2,"O sistema de agendamento vive fora do ar.",[3],0,74,0,null,null],["2026-06-26",0,1,4,3,0,7,"Fila enorme e ninguém informava nada.",[1],0,70,null,0,null],["2026-06-26",0,1,4,1,1,8,"Equipe educada e carinhosa com minha mãe. Tiraram todas as minhas dúvidas.",[1,2],2,74,null,0,null],["2026-06-26",0,1,4,0,1,9,"Sala de espera confortável e limpa.",[4],2,97,null,0,[[4],2]],["2026-06-26",1,1,4,0,1,9,"O médico me tratou com muito respeito.",[1],2,91,null,0,[[1],2]],["2026-06-26",0,2,0,3,1,5,"Demora absurda, quase fui embora sem ser chamado. A enfermeira foi muito atenciosa comigo.",[0],0,68,0,null,null],["2026-06-26",0,2,0,3,1,5,"Demorou dois meses pra conseguir vaga. Explicaram o básico.",[2,3],0,78,1,null,null],["2026-06-26",1,2,0,0,1,7,"O sistema de agendamento vive fora do ar.",[3],0,92,0,null,null],["2026-06-27",1,0,1,2,0,5,"Chegou minha vez no horário marcado. Ninguém olhava na minha cara.",[0,1],0,75,1,null,[[0,1],0]],["2026-06-27",0,0,0,0,0,7,"Atendimento normal, sem nada de especial.",[0,1],1,44,0,null,[[1],1]],["2026-06-27",2,1,4,0,0,7,"Cadeiras quebradas na sala de espera.",[4],0,93,null,0,[[4],0]],["2026-06-27",2,1,4,3,1,10,"Saí entendendo direitinho como tomar o remédio.",[2],2,77,null,1,[[2],2]],["2026-06-27",1,1,4,0,0,10,"O médico explicou tudo com calma.",[1,2],2,43,null,0,[[2],2]],["2026-06-27",0,2,2,2,0,9,"Chegou minha vez no horário marcado.",[0,3],2,49,1,null,null],["2026-06-27",0,2,2,1,0,6,"Banheiro sujo e sem papel.",[4],0,95,0,null,[[4],0]],["2026-06-27",1,2,1,1,1,8,"Entendi mais ou menos o que fazer.",[3],1,81,0,null,null],["2026-06-28",1,0,0,2,1,10,"Agendamento simples e rápido.",[3],2,85,1,null,null],["2026-06-28",0,0,0,1,1,9,"Atendimento normal, sem nada de especial. Agendamento simples e rápido.",[1,3],2,89,0,null,[[1,3],2]],["2026-06-28",1,1,4,1,1,1,"Consulta muito rápida, não deu pra perguntar nada.",[2],0,96,null,0,null],["2026-06-28",0,2,2,1,1,7,"Entendi mais ou menos o que fazer.",[2],1,95,1,null,null],["2026-06-28",1,2,2,2,1,4,"Consulta muito rápida, não deu pra perguntar nada. Consegui marcar pelo WhatsApp fácil.",[2,3],0,82,0,null,[[2,3],0]],["2026-06-29",1,0,0,3,0,6,"Entendi mais ou menos o que fazer.",[2],1,98,1,null,null],["2026-06-29",0,1,4,1,1,5,"Demora absurda, quase fui embora sem ser chamado. O médico me tratou com muito respeito.",[0,1],0,76,null,0,null],["2026-06-29",0,1,4,2,1,0,"Esperei mais de 3 horas para ser atendido.",[0],0,75,null,0,null],["2026-06-30",1,0,3,0,1,9,"O médico me tratou com muito respeito.",[1],2,83,0,null,null],["2026-06-30",1,1,4,2,1,10,"Tiraram todas as minhas dúvidas.",[2],2,76,null,1,null],["2026-06-30",1,2,0,2,1,9,"Equipe educada e carinhosa com minha mãe.",[1,2],2,51,1,null,null],["2026-06-30",0,2,2,2,0,8,"Equipe correta, só isso.",[4],1,43,1,null,null],["2026-07-01",1,0,0,0,0,3,"Fila enorme e ninguém informava nada. O sistema de agendamento vive fora do ar.",[0,3],1,66,0,null,null],["2026-07-01",1,0,3,2,0,9,"O médico explicou tudo com calma.",[2],2,73,1,null,null],["2026-07-01",0,1,4,0,0,3,"Ninguém me explicou o resultado do exame. O agendamento funcionou, mas é burocrático.",[2],0,73,null,1,null],["2026-07-01",1,1,4,1,0,6,"Explicação confusa, cheia de termo técnico.",[1,2],0,47,null,0,[[2],0]],["2026-07-01",1,1,4,2,0,6,"Explicação confusa, cheia de termo técnico.",[2],0,94,null,0,null],["2026-07-01",2,1,4,0,0,9,"Consegui marcar pelo WhatsApp fácil. Equipe correta, só isso.",[1,3],1,78,null,0,null],["2026-07-01",0,2,2,2,0,4,"Fui tratado com descaso.",[1],0,81,0,null,null],["2026-07-02",1,0,2,1,0,7,"Fila enorme e ninguém informava nada.",[0],0,86,0,null,null],["2026-07-02",1,1,4,1,0,8,"Tiraram todas as minhas dúvidas.",[2],2,88,null,0,null],["2026-07-02",2,1,4,1,0,3,"Fui tratado com descaso.",[0,1],0,62,null,0,null],["2026-07-02",0,1,0,0,1,8,"O médico explicou tudo com calma.",[2],1,47,1,null,[[2],2]],["2026-07-02",0,1,4,2,1,4,"Cadeiras quebradas na sala de espera.",[4],0,86,null,0,null],["2026-07-02",0,1,4,1,0,3,"Consulta muito rápida, não deu pra perguntar nada.",[2],0,98,null,1,null],["2026-07-03",0,0,2,2,0,3,"Liguei dez vezes e ninguém atende para marcar.",[1,3],0,46,0,null,null],["2026-07-03",1,0,0,0,1,7,"Local ok.",[4],1,93,0,null,null],["2026-07-03",0,1,4,0,1,10,"Tiraram todas as minhas dúvidas.",[2],1,49,null,0,null],["2026-07-03",0,1,4,3,0,8,"Banheiro limpinho, estrutura boa.",[4],2,72,null,0,[[4],2]],["2026-07-03",0,2,0,3,1,4,"Liguei dez vezes e ninguém atende para marcar.",[3],0,83,0,null,null],["2026-07-03",1,2,2,2,0,5,"Passei a manhã inteira esperando com dor.",[0],0,80,0,null,null],["2026-07-04",0,0,3,1,1,9,"O médico explicou tudo com calma.",[2],2,93,0,null,null],["2026-07-04",1,0,0,3,1,8,"Tiraram todas as minhas dúvidas.",[2],2,91,0,null,null],["2026-07-04",1,1,4,1,1,2,"Explicação confusa, cheia de termo técnico. A enfermeira foi muito atenciosa comigo.",[1,2],0,94,null,1,null],["2026-07-04",0,1,0,0,0,9,"Banheiro limpinho, estrutura boa.",[4],2,85,0,null,[[4],2]],["2026-07-04",0,1,4,2,1,3,"Muito tempo de espera e nenhuma previsão.",[0],0,96,null,0,null],["2026-07-04",0,1,4,3,1,9,"Equipe educada e carinhosa com minha mãe.",[1],2,73,null,0,null],["2026-07-04",1,1,4,0,0,6,"Fui tratado com descaso. Consulta muito rápida, não deu pra perguntar nada.",[1,2],1,44,null,0,null],["2026-07-04",0,1,4,0,1,8,"O médico me tratou com muito respeito.",[1],2,93,null,0,[[1],2]],["2026-07-04",0,2,2,3,1,5,"Sala de espera confortável e limpa. Demorou dois meses pra conseguir vaga.",[3],0,73,1,null,null],["2026-07-04",0,2,0,1,0,10,"Chegou minha vez no horário marcado.",[0],1,60,0,null,null],["2026-07-04",0,2,1,2,1,4,"Fila enorme e ninguém informava nada.",[2],0,64,0,null,null],["2026-07-05",1,0,0,3,1,9,"Consegui marcar pelo WhatsApp fácil. Local ok.",[3,4],2,79,0,null,null],["2026-07-05",1,0,3,2,0,10,"A enfermeira foi muito atenciosa comigo.",[1],2,72,1,null,null],["2026-07-05",0,1,4,3,1,2,"Saí sem saber como tomar a medicação.",[2],1,50,null,0,null],["2026-07-05",0,1,4,0,0,2,"Demora absurda, quase fui embora sem ser chamado. O médico explicou tudo com calma.",[0,4],0,77,null,0,null],["2026-07-05",0,2,0,3,0,8,"Equipe educada e carinhosa com minha mãe.",[1],2,79,0,null,null],["2026-07-05",0,2,2,0,1,10,"Saí entendendo direitinho como tomar o remédio.",[2],1,59,0,null,[[2],2]],["2026-07-06",2,1,4,1,1,10,"Sala de espera confortável e limpa.",[1,4],2,57,null,0,null],["2026-07-06",1,1,4,1,1,4,"Demora absurda, quase fui embora sem ser chamado. Cadeiras quebradas na sala de espera.",[0,4],0,85,null,0,null],["2026-07-07",0,1,4,3,0,9,"Banheiro limpinho, estrutura boa.",[4],2,95,null,0,null],["2026-07-07",2,1,0,0,1,4,"Fila enorme e ninguém informava nada. Fui tratado com descaso.",[0,1],1,56,0,null,null],["2026-07-07",0,2,0,3,1,9,"O médico me tratou com muito respeito.",[1],2,75,1,null,null],["2026-07-08",0,0,1,3,1,8,"Ninguém me explicou o resultado do exame.",[2],0,98,1,null,null],["2026-07-08",1,0,3,0,1,5,"Passei a manhã inteira esperando com dor.",[0],1,44,0,null,[[0],0]],["2026-07-08",0,1,4,1,1,9,"A enfermeira foi muito atenciosa comigo.",[1],2,94,null,1,null],["2026-07-08",1,2,2,3,0,8,"A espera foi razoável. Liguei dez vezes e ninguém atende para marcar.",[0,3],1,45,1,null,null],["2026-07-09",0,0,1,0,0,10,"Banheiro limpinho, estrutura boa.",[4],2,85,0,null,null],["2026-07-09",0,1,4,3,0,4,"Esperei mais de 3 horas para ser atendido.",[0,1],0,51,null,0,null],["2026-07-09",0,2,0,0,1,4,"Banheiro sujo e sem papel. Me ligaram para confirmar a consulta, gostei.",[3,4],0,80,0,null,null],["2026-07-10",1,1,0,1,0,4,"Explicação confusa, cheia de termo técnico.",[2],0,74,0,null,null],["2026-07-10",1,2,2,1,0,10,"Me ligaram para confirmar a consulta, gostei.",[3],2,95,1,null,null],["2026-07-11",0,1,4,3,0,9,"O médico explicou tudo com calma.",[2],2,98,null,0,null],["2026-07-11",0,2,1,2,1,7,"Estrutura simples, mas funciona.",[4],1,85,0,null,null],["2026-07-11",0,2,0,0,0,6,"Local ok.",[3],1,78,0,null,null],["2026-07-11",1,2,2,2,0,6,"Saí sem saber como tomar a medicação.",[2],0,85,1,null,null],["2026-07-11",0,2,0,1,0,8,"Me ligaram para confirmar a consulta, gostei.",[1,3],2,44,0,null,null],["2026-07-12",0,0,0,1,1,6,"Saí sem saber como tomar a medicação.",[2],0,74,1,null,null],["2026-07-12",1,0,0,3,1,6,"Falta bebedouro para os pacientes. O sistema de agendamento vive fora do ar.",[3,4],0,92,0,null,null],["2026-07-12",0,1,4,1,1,5,"Banheiro limpinho, estrutura boa. Passei a manhã inteira esperando com dor.",[0,4],0,75,null,0,null],["2026-07-12",0,1,4,0,0,8,"Banheiro limpinho, estrutura boa.",[4],2,73,null,0,null],["2026-07-12",2,1,4,1,1,4,"Saí sem saber como tomar a medicação.",[1,2],0,46,null,0,null],["2026-07-12",1,1,4,0,1,2,"Ar-condicionado não funciona, muito calor. Entendi mais ou menos o que fazer.",[2,4],0,83,null,0,null],["2026-07-13",1,1,0,0,1,10,"O médico me tratou com muito respeito.",[1],2,97,0,null,[[1],2]],["2026-07-13",1,2,0,0,1,5,"Liguei dez vezes e ninguém atende para marcar.",[3],0,96,1,null,null],["2026-07-13",0,2,1,1,0,5,"Saí sem saber como tomar a medicação. Esperei uns 40 minutos, dentro do normal.",[0,2],0,81,0,null,null],["2026-07-13",0,2,1,2,0,6,"Ninguém olhava na minha cara.",[1],0,93,0,null,null],["2026-07-14",0,1,4,2,0,2,"Banheiro sujo e sem papel. Ninguém olhava na minha cara.",[1,4],0,96,null,0,null],["2026-07-14",1,1,4,0,0,8,"Equipe correta, só isso.",[1],1,93,null,0,null],["2026-07-14",2,1,4,1,1,6,"Tiraram todas as minhas dúvidas. Fila enorme e ninguém informava nada.",[0,2],0,89,null,0,null],["2026-07-14",0,2,1,1,0,9,"Consegui marcar pelo WhatsApp fácil.",[1],2,48,0,null,[[3],2]],["2026-07-14",1,2,1,2,0,5,"Esperei mais de 3 horas para ser atendido.",[0],0,81,1,null,null],["2026-07-15",0,0,3,0,1,7,"O médico explicou tudo com calma. Muito tempo de espera e nenhuma previsão.",[0,1],0,54,0,null,null],["2026-07-15",0,0,1,3,1,10,"Tiraram todas as minhas dúvidas.",[0],2,76,0,null,null],["2026-07-15",0,1,4,3,1,5,"Muito tempo de espera e nenhuma previsão.",[0,1],0,66,null,0,null],["2026-07-15",1,2,1,3,0,2,"O sistema de agendamento vive fora do ar.",[3],0,79,0,null,null],["2026-07-16",1,0,0,1,1,10,"A enfermeira foi muito atenciosa comigo. Fui atendido rapidinho.",[0,1],2,85,1,null,null],["2026-07-16",0,1,4,0,0,10,"O médico me tratou com muito respeito.",[1],2,94,null,0,null],["2026-07-16",1,2,1,3,1,4,"Saí sem saber como tomar a medicação.",[2],0,88,1,null,null],["2026-07-16",0,2,2,3,1,3,"A enfermeira foi muito atenciosa comigo. Demorou dois meses pra conseguir vaga.",[1],0,52,0,null,null],["2026-07-16",1,2,0,1,1,10,"Consegui marcar pelo WhatsApp fácil.",[3],1,44,1,null,[[3],2]],["2026-07-17",0,0,1,0,1,10,"O médico explicou tudo com calma. Estrutura simples, mas funciona.",[2,4],1,66,1,null,null],["2026-07-17",0,1,4,2,1,8,"Banheiro limpinho, estrutura boa.",[4],2,92,null,0,null],["2026-07-17",0,2,0,2,0,3,"Demorou dois meses pra conseguir vaga. Saí entendendo direitinho como tomar o remédio.",[2,3],0,79,0,null,null],["2026-07-18",0,0,0,3,0,10,"Explicaram o básico. Sala de espera confortável e limpa.",[2,4],2,85,1,null,null],["2026-07-18",0,0,0,2,0,6,"Esperei mais de 3 horas para ser atendido.",[0],0,96,1,null,null],["2026-07-18",0,2,0,3,1,9,"Consegui marcar pelo WhatsApp fácil.",[0,1],2,72,0,null,null],["2026-07-18",1,2,2,0,0,8,"Tiraram todas as minhas dúvidas.",[1,2],2,50,0,null,null],["2026-07-19",0,1,4,1,1,3,"Ar-condicionado não funciona, muito calor.",[4],0,83,null,0,null],["2026-07-19",2,1,4,2,0,10,"Tiraram todas as minhas dúvidas.",[1,2],2,49,null,0,null],["2026-07-19",0,1,4,0,1,10,"Chegou minha vez no horário marcado. Entendi mais ou menos o que fazer.",[0],2,74,null,0,null],["2026-07-19",0,2,2,1,1,8,"O agendamento funcionou, mas é burocrático. Sala de espera confortável e limpa.",[3,4],1,46,0,null,null],["2026-07-19",1,2,0,1,1,3,"Demorou dois meses pra conseguir vaga.",[2,3],0,72,0,null,null],["2026-07-19",0,2,2,1,0,9,"Fui atendido rapidinho. Marcar demorou alguns dias.",[0,3],2,85,0,null,null],["2026-07-20",1,0,1,2,0,4,"Passei a manhã inteira esperando com dor.",[0],0,94,0,null,null],["2026-07-20",1,1,4,0,1,9,"Banheiro limpinho, estrutura boa. Saí entendendo direitinho como tomar o remédio.",[2,4],2,91,null,1,null],["2026-07-20",1,1,4,1,0,8,"Local ok. Equipe correta, só isso.",[3,4],1,62,null,0,[[1,4],1]],["2026-07-20",0,1,4,1,1,1,"Cadeiras quebradas na sala de espera.",[2],0,67,null,0,null],["2026-07-20",1,2,0,1,0,9,"Banheiro limpinho, estrutura boa.",[4],1,45,0,null,null],["2026-07-20",0,2,1,3,1,9,"A enfermeira foi muito atenciosa comigo. A espera foi razoável.",[0,1],2,86,0,null,[[0,1],2]],["2026-07-21",0,0,3,2,1,10,"Esperei pouco, tudo bem organizado.",[0],2,94,0,null,null],["2026-07-21",1,2,2,2,0,7,"O agendamento funcionou, mas é burocrático.",[3],1,85,0,null,null],["2026-07-21",0,2,0,3,1,9,"Explicaram o básico. Esperei uns 40 minutos, dentro do normal.",[0,1],1,71,0,null,[[0,2],1]],["2026-07-21",1,2,0,2,1,5,"A enfermeira foi muito atenciosa comigo. Demorou dois meses pra conseguir vaga.",[1,3],0,77,0,null,null],["2026-07-22",1,1,4,1,0,9,"Sala de espera confortável e limpa.",[4],2,89,null,0,null],["2026-07-22",0,1,4,1,1,9,"A enfermeira foi muito atenciosa comigo.",[1],2,91,null,0,null],["2026-07-22",1,1,4,1,1,8,"A espera foi razoável.",[0],1,73,null,0,null],["2026-07-22",1,1,4,0,0,10,"Me ligaram para confirmar a consulta, gostei.",[1,3],2,56,null,0,[[3],2]],["2026-07-22",0,1,4,0,1,3,"Chegou minha vez no horário marcado. Banheiro sujo e sem papel.",[4],0,44,null,0,[[0,4],0]],["2026-07-22",2,1,0,2,0,5,"Ar-condicionado não funciona, muito calor.",[1,4],0,65,0,null,null],["2026-07-22",0,2,2,1,1,9,"Sala de espera confortável e limpa.",[4],2,84,0,null,null],["2026-07-23",1,1,0,2,1,8,"Chegou minha vez no horário marcado. O agendamento funcionou, mas é burocrático.",[0,3],2,82,0,null,null],["2026-07-23",0,2,1,3,1,10,"Me ligaram para confirmar a consulta, gostei.",[3],2,81,1,null,null],["2026-07-24",0,2,2,1,0,8,"Entendi mais ou menos o que fazer.",[2],1,77,1,null,[[2],1]],["2026-07-25",1,1,4,0,0,8,"Sala de espera confortável e limpa. Atendimento normal, sem nada de especial.",[1,4],2,96,null,0,null],["2026-07-25",2,1,4,3,0,7,"Explicaram o básico.",[2,4],1,70,null,0,null],["2026-07-25",0,1,4,2,0,3,"Banheiro sujo e sem papel.",[4],1,71,null,0,null],["2026-07-25",0,1,0,1,0,9,"Chegou minha vez no horário marcado.",[0],2,88,1,null,null],["2026-07-25",0,2,0,0,1,9,"Equipe educada e carinhosa com minha mãe.",[3],2,62,0,null,null],["2026-07-25",1,2,2,1,0,10,"Sala de espera confortável e limpa.",[4],2,75,1,null,null],["2026-07-25",1,2,2,3,0,5,"Liguei dez vezes e ninguém atende para marcar.",[2,3],0,63,0,null,null],["2026-07-25",0,2,0,2,0,8,"Estrutura simples, mas funciona.",[4],1,98,0,null,null],["2026-07-26",1,0,3,0,0,3,"Liguei dez vezes e ninguém atende para marcar.",[3],0,91,0,null,null],["2026-07-26",0,0,1,3,0,9,"A enfermeira foi muito atenciosa comigo.",[1],2,87,0,null,null],["2026-07-26",0,1,4,2,1,10,"Entendi mais ou menos o que fazer. Banheiro limpinho, estrutura boa.",[2,4],2,76,null,0,null],["2026-07-26",1,1,4,1,0,1,"Consulta muito rápida, não deu pra perguntar nada. Local ok.",[2,4],0,82,null,0,null],["2026-07-26",0,2,1,1,1,6,"Local ok.",[1,4],1,54,1,null,null],["2026-07-26",1,2,2,0,1,3,"A recepcionista foi grossa e impaciente.",[1],0,75,0,null,null],["2026-07-27",1,0,3,0,1,9,"Consegui marcar pelo WhatsApp fácil.",[3],2,81,1,null,null],["2026-07-27",0,0,1,2,1,3,"Passei a manhã inteira esperando com dor.",[0],0,77,0,null,null],["2026-07-27",0,0,0,0,1,7,"Entendi mais ou menos o que fazer. Liguei dez vezes e ninguém atende para marcar.",[2,3],0,78,0,null,null],["2026-07-27",0,1,4,1,0,9,"Sala de espera confortável e limpa.",[4],2,77,null,0,[[4],2]],["2026-07-27",1,1,0,3,0,6,"Muito tempo de espera e nenhuma previsão.",[0,2],0,81,0,null,null],["2026-07-27",1,2,0,2,0,9,"Marcar demorou alguns dias.",[3],1,87,1,null,null],["2026-07-28",1,0,1,2,1,7,"Ar-condicionado não funciona, muito calor.",[1],0,51,0,null,null],["2026-07-28",0,0,1,2,1,7,"Equipe correta, só isso.",[1],1,96,0,null,null],["2026-07-28",1,0,0,2,1,8,"Passei a manhã inteira esperando com dor.",[0,3],0,74,1,null,null],["2026-07-28",1,0,0,1,0,1,"Passei a manhã inteira esperando com dor. Me ligaram para confirmar a consulta, gostei.",[0,3],0,90,0,null,null],["2026-07-28",1,1,4,0,0,7,"Cadeiras quebradas na sala de espera. Fila enorme e ninguém informava nada.",[0,4],0,92,null,0,null],["2026-07-28",0,2,0,3,0,4,"Demorou dois meses pra conseguir vaga. Local ok.",[1,3],0,80,0,null,null],["2026-07-28",0,2,1,3,1,8,"Demorou um pouco, mas deu pra aguentar.",[1,2],1,60,1,null,[[0],1]],["2026-07-28",1,2,1,1,1,5,"Ninguém olhava na minha cara. Muito tempo de espera e nenhuma previsão.",[0,1],0,82,0,null,[[0,1],0]],["2026-07-29",0,1,4,2,1,9,"Sala de espera confortável e limpa.",[4],1,48,null,0,null],["2026-07-29",0,1,0,2,0,9,"Saí entendendo direitinho como tomar o remédio.",[2],2,84,1,null,null],["2026-07-29",0,1,4,1,0,4,"A recepcionista foi grossa e impaciente.",[1],0,98,null,0,null],["2026-07-29",1,1,4,0,1,2,"Demora absurda, quase fui embora sem ser chamado.",[0],0,75,null,1,null],["2026-07-29",0,2,1,3,1,2,"Passei a manhã inteira esperando com dor. Equipe educada e carinhosa com minha mãe.",[0,1],0,72,0,null,null],["2026-07-30",0,0,3,1,0,9,"Consegui marcar pelo WhatsApp fácil. Equipe educada e carinhosa com minha mãe.",[1,3],2,84,1,null,null],["2026-07-30",1,1,4,1,1,0,"Fila enorme e ninguém informava nada. Local ok.",[3,4],0,49,null,0,null],["2026-07-30",0,2,0,0,0,10,"Sala de espera confortável e limpa.",[4],2,77,0,null,null],["2026-07-30",1,2,2,2,0,8,"Marcar demorou alguns dias.",[3],1,89,1,null,null],["2026-07-30",0,2,2,3,0,3,"Esperei mais de 3 horas para ser atendido.",[0,1],0,73,0,null,null],["2026-07-31",0,0,1,3,1,10,"Sala de espera confortável e limpa.",[4],2,90,0,null,[[4],2]],["2026-07-31",1,0,0,3,1,10,"Banheiro limpinho, estrutura boa.",[4],2,87,0,null,null],["2026-07-31",1,1,4,0,0,4,"Fui tratado com descaso. Tiraram todas as minhas dúvidas.",[1,2],0,92,null,0,[[1,2],0]],["2026-07-31",0,1,4,1,0,9,"Tiraram todas as minhas dúvidas.",[2],2,83,null,0,[[2],2]],["2026-08-01",1,0,1,3,1,10,"Chegou minha vez no horário marcado.",[0],1,76,0,null,null],["2026-08-01",1,2,0,3,0,5,"A recepcionista foi grossa e impaciente.",[0],0,45,0,null,null],["2026-08-01",0,2,0,2,0,10,"Chegou minha vez no horário marcado.",[0],2,84,0,null,null],["2026-08-02",1,0,0,2,0,4,"A recepcionista foi grossa e impaciente.",[1],0,75,0,null,[[1],0]],["2026-08-02",0,0,2,1,1,10,"Tiraram todas as minhas dúvidas.",[2],2,90,1,null,null],["2026-08-02",1,1,4,3,0,6,"Fui tratado com descaso.",[1],0,84,null,0,null],["2026-08-02",0,1,0,1,1,1,"Fila enorme e ninguém informava nada. Equipe correta, só isso.",[0,1],0,74,0,null,[[0,1],0]],["2026-08-02",2,1,4,3,0,7,"Explicaram o básico.",[2],1,77,null,0,null],["2026-08-02",0,1,0,1,1,5,"Fila enorme e ninguém informava nada. Estrutura simples, mas funciona.",[0,1],0,64,1,null,null],["2026-08-02",0,2,1,2,1,10,"O médico me tratou com muito respeito.",[1],2,92,0,null,null],["2026-08-02",0,2,1,3,1,7,"Muito tempo de espera e nenhuma previsão. Saí entendendo direitinho como tomar o remédio.",[0,1],0,58,1,null,null],["2026-08-03",1,0,0,1,1,9,"Explicaram o básico.",[2],1,76,1,null,null],["2026-08-03",1,0,3,0,1,4,"Demorou dois meses pra conseguir vaga. Saí entendendo direitinho como tomar o remédio.",[2,3],0,84,0,null,null],["2026-08-03",0,1,4,2,1,5,"Ninguém me explicou o resultado do exame. Muito tempo de espera e nenhuma previsão.",[0,2],0,80,null,1,[[0,2],0]],["2026-08-03",1,2,0,3,1,6,"Saí sem saber como tomar a medicação.",[2],0,94,0,null,null],["2026-08-03",0,2,0,3,0,9,"Equipe educada e carinhosa com minha mãe.",[1,3],2,53,0,null,null],["2026-08-03",0,2,0,1,0,9,"Me ligaram para confirmar a consulta, gostei. Saí entendendo direitinho como tomar o remédio.",[2,3],2,86,1,null,null],["2026-08-03",0,2,0,3,0,8,"Agendamento simples e rápido.",[3],2,89,0,null,null],["2026-08-04",0,1,4,0,0,5,"Fila enorme e ninguém informava nada.",[0,1],0,51,null,0,null],["2026-08-04",0,1,4,3,1,8,"Esperei uns 40 minutos, dentro do normal.",[0],1,91,null,0,null],["2026-08-04",0,2,1,3,0,10,"O médico explicou tudo com calma. Banheiro limpinho, estrutura boa.",[2,4],1,55,0,null,null],["2026-08-04",0,2,2,3,1,9,"Esperei pouco, tudo bem organizado. Marcar demorou alguns dias.",[0,3],2,90,1,null,null],["2026-08-04",0,2,0,0,0,9,"Banheiro limpinho, estrutura boa. Atendimento normal, sem nada de especial.",[1,4],2,90,1,null,null],["2026-08-05",0,0,0,0,1,4,"Explicação confusa, cheia de termo técnico.",[2],0,77,0,null,null],["2026-08-05",0,0,1,0,1,8,"Estrutura simples, mas funciona.",[4],1,84,0,null,null],["2026-08-05",0,1,4,2,1,3,"Banheiro sujo e sem papel.",[0],0,54,null,0,[[4],0]],["2026-08-05",0,1,0,1,1,4,"Banheiro sujo e sem papel.",[4],1,79,1,null,null],["2026-08-05",0,1,4,2,0,9,"O médico explicou tudo com calma. Sala de espera confortável e limpa.",[2,4],2,73,null,0,null],["2026-08-05",0,2,0,3,1,0,"Cadeiras quebradas na sala de espera. Demora absurda, quase fui embora sem ser chamado.",[0,4],0,74,0,null,null],["2026-08-05",0,2,2,3,1,10,"Banheiro limpinho, estrutura boa.",[4],2,86,0,null,null],["2026-08-05",1,2,0,2,1,0,"Saí entendendo direitinho como tomar o remédio. O sistema de agendamento vive fora do ar.",[2,3],0,75,0,null,null],["2026-08-05",1,2,1,3,1,10,"A enfermeira foi muito atenciosa comigo.",[1],2,72,1,null,[[1],2]],["2026-08-05",0,2,1,1,0,9,"Tiraram todas as minhas dúvidas.",[2,4],2,56,0,null,null],["2026-08-06",1,1,4,3,1,8,"Saí entendendo direitinho como tomar o remédio.",[2],2,84,null,1,null],["2026-08-06",0,1,0,3,1,8,"O agendamento funcionou, mas é burocrático.",[3],1,94,1,null,null],["2026-08-06",1,2,0,3,1,5,"Tiraram todas as minhas dúvidas. Liguei dez vezes e ninguém atende para marcar.",[0,3],0,51,0,null,null],["2026-08-06",1,2,0,2,1,2,"Demora absurda, quase fui embora sem ser chamado.",[0],0,86,0,null,[[0],0]],["2026-08-06",0,2,1,2,1,6,"Demorou dois meses pra conseguir vaga. Entendi mais ou menos o que fazer.",[2,3],0,96,0,null,null],["2026-08-07",0,1,4,2,0,0,"Fila enorme e ninguém informava nada.",[0,1],0,79,null,0,null],["2026-08-07",0,2,0,2,0,5,"Liguei dez vezes e ninguém atende para marcar.",[3],0,84,1,null,[[3],0]],["2026-08-08",1,0,1,0,0,6,"Esperei uns 40 minutos, dentro do normal.",[0,1],1,81,1,null,[[0],1]],["2026-08-08",1,0,3,2,1,2,"O médico me tratou com muito respeito. Consulta muito rápida, não deu pra perguntar nada.",[2],0,82,0,null,null],["2026-08-08",1,1,4,0,1,3,"Ninguém olhava na minha cara.",[0],0,54,null,1,null],["2026-08-08",1,2,2,2,1,4,"Cadeiras quebradas na sala de espera. Ninguém me explicou o resultado do exame.",[2,4],1,44,0,null,null],["2026-08-08",0,2,0,3,0,8,"Saí entendendo direitinho como tomar o remédio.",[2],2,79,1,null,[[2],2]],["2026-08-09",0,1,4,0,0,5,"Explicação confusa, cheia de termo técnico. O médico me tratou com muito respeito.",[2],1,73,null,0,null],["2026-08-09",1,1,4,0,1,9,"Saí entendendo direitinho como tomar o remédio. Local ok.",[2,4],2,96,null,1,null],["2026-08-09",1,1,0,3,0,10,"A enfermeira foi muito atenciosa comigo.",[1],2,78,0,null,null],["2026-08-09",0,1,4,3,1,8,"Equipe correta, só isso.",[1],1,97,null,0,[[1],1]],["2026-08-09",0,2,0,2,0,9,"Tiraram todas as minhas dúvidas.",[2],1,73,1,null,null],["2026-08-10",1,2,2,2,0,7,"O agendamento funcionou, mas é burocrático.",[3],0,43,1,null,[[3],1]],["2026-08-10",1,2,0,3,1,4,"Consulta muito rápida, não deu pra perguntar nada.",[2,3],0,42,0,null,null],["2026-08-10",0,2,0,1,1,6,"Fila enorme e ninguém informava nada.",[0,1],0,48,0,null,null],["2026-08-10",0,2,0,2,0,9,"Consegui marcar pelo WhatsApp fácil. Saí entendendo direitinho como tomar o remédio.",[2,3],2,73,0,null,null],["2026-08-11",1,0,3,0,1,3,"Fui tratado com descaso. A espera foi razoável.",[1],0,43,0,null,null],["2026-08-11",0,1,4,1,1,10,"Banheiro limpinho, estrutura boa.",[4],2,84,null,0,null],["2026-08-12",0,1,4,2,1,2,"Fila enorme e ninguém informava nada. Local ok.",[0,1],1,51,null,0,null],["2026-08-12",2,1,4,2,1,6,"Muito tempo de espera e nenhuma previsão.",[0],0,83,null,0,null],["2026-08-12",0,2,1,2,1,9,"Chegou minha vez no horário marcado.",[0],2,88,1,null,null],["2026-08-13",0,0,3,2,1,8,"Equipe educada e carinhosa com minha mãe.",[1],2,84,1,null,[[1],2]],["2026-08-13",0,0,0,2,1,9,"O médico explicou tudo com calma. Demorou um pouco, mas deu pra aguentar.",[0,2],2,76,1,null,[[0,2],2]],["2026-08-13",1,0,2,3,1,10,"O médico me tratou com muito respeito.",[1],2,98,1,null,null],["2026-08-13",1,1,4,0,0,9,"O médico explicou tudo com calma. Chegou minha vez no horário marcado.",[0,2],2,74,null,0,[[0,2],2]],["2026-08-13",2,1,4,1,0,3,"Passei a manhã inteira esperando com dor.",[0,1],0,55,null,0,null],["2026-08-13",0,1,4,1,1,5,"Ar-condicionado não funciona, muito calor. A espera foi razoável.",[0,4],0,91,null,0,[[0,4],0]],["2026-08-13",0,1,4,3,0,8,"Estrutura simples, mas funciona.",[4],1,82,null,0,null],["2026-08-13",1,1,4,1,1,5,"Esperei mais de 3 horas para ser atendido.",[0],0,85,null,0,null],["2026-08-13",2,1,4,1,0,5,"Demora absurda, quase fui embora sem ser chamado.",[0],0,86,null,0,null],["2026-08-14",0,0,0,3,0,8,"Equipe correta, só isso.",[1],1,78,0,null,[[1],1]],["2026-08-14",0,0,1,3,1,7,"Fui tratado com descaso.",[1],1,60,0,null,[[1],0]],["2026-08-14",0,0,1,1,0,5,"Explicação confusa, cheia de termo técnico.",[1,2],0,44,0,null,null],["2026-08-14",2,1,4,0,0,1,"Demora absurda, quase fui embora sem ser chamado. Sala de espera confortável e limpa.",[0,4],0,93,null,1,null],["2026-08-14",0,1,4,3,1,2,"Banheiro sujo e sem papel.",[4],0,96,null,0,[[4],0]],["2026-08-14",1,1,4,2,1,0,"Fila enorme e ninguém informava nada. A recepcionista foi grossa e impaciente.",[0,1],0,90,null,0,null],["2026-08-14",0,2,1,3,1,10,"Consegui marcar pelo WhatsApp fácil.",[3],2,88,0,null,[[3],2]],["2026-08-15",1,0,0,1,1,3,"Consulta muito rápida, não deu pra perguntar nada.",[2],0,86,0,null,null],["2026-08-15",0,0,1,2,0,9,"Tiraram todas as minhas dúvidas. A espera foi razoável.",[0,2],2,77,1,null,null],["2026-08-15",1,1,4,3,0,8,"O médico me tratou com muito respeito.",[1],2,85,null,0,null],["2026-08-15",1,2,0,1,0,10,"Consegui marcar pelo WhatsApp fácil. A enfermeira foi muito atenciosa comigo.",[1,3],2,97,1,null,null],["2026-08-16",0,0,3,3,0,4,"Demorou dois meses pra conseguir vaga.",[3],0,92,0,null,[[3],0]],["2026-08-16",0,0,0,1,0,7,"Demora absurda, quase fui embora sem ser chamado. Equipe educada e carinhosa com minha mãe.",[0,1],0,89,1,null,null],["2026-08-16",0,1,4,2,0,6,"Fui tratado com descaso. Explicação confusa, cheia de termo técnico.",[1],0,70,null,0,null],["2026-08-16",1,2,2,3,0,4,"Me ligaram para confirmar a consulta, gostei. Saí sem saber como tomar a medicação.",[2,3],0,73,0,null,[[2,3],0]],["2026-08-17",0,0,1,1,1,6,"Estrutura simples, mas funciona.",[4],1,85,0,null,null],["2026-08-18",0,1,4,1,1,10,"A enfermeira foi muito atenciosa comigo.",[1],1,64,null,0,null],["2026-08-18",0,1,4,3,0,9,"Saí entendendo direitinho como tomar o remédio. Equipe educada e carinhosa com minha mãe.",[1,2],2,87,null,0,null],["2026-08-18",1,2,0,2,1,10,"Esperei pouco, tudo bem organizado.",[0],2,90,1,null,[[0],2]],["2026-08-19",1,0,3,0,1,8,"Demorou um pouco, mas deu pra aguentar. Entendi mais ou menos o que fazer.",[0,2],2,58,0,null,null],["2026-08-19",0,1,4,1,0,8,"Estrutura simples, mas funciona.",[4],1,72,null,0,null],["2026-08-19",1,2,2,3,1,10,"Equipe educada e carinhosa com minha mãe.",[1],2,76,0,null,null],["2026-08-19",0,2,2,2,1,9,"Equipe educada e carinhosa com minha mãe.",[1],2,85,0,null,[[1],2]],["2026-08-19",0,2,2,0,1,9,"Sala de espera confortável e limpa.",[4],2,73,1,null,[[4],2]],["2026-08-20",1,0,3,0,0,4,"Ninguém me explicou o resultado do exame. Me ligaram para confirmar a consulta, gostei.",[2,3],0,98,0,null,null],["2026-08-20",0,1,4,2,1,4,"Explicação confusa, cheia de termo técnico. Fui tratado com descaso.",[1,2],0,72,null,1,[[1,2],0]],["2026-08-20",1,1,4,3,0,8,"Sala de espera confortável e limpa.",[1,4],2,52,null,0,[[4],2]],["2026-08-21",1,0,0,1,1,10,"Banheiro limpinho, estrutura boa.",[1,4],2,74,null,null,null],["2026-08-21",1,1,4,0,1,2,"Consulta muito rápida, não deu pra perguntar nada.",[1,2],0,61,null,0,null],["2026-08-21",0,1,4,0,1,2,"Saí entendendo direitinho como tomar o remédio. Passei a manhã inteira esperando com dor.",[0,2],0,97,null,0,null],["2026-08-21",1,1,4,0,1,5,"Banheiro sujo e sem papel.",[1,4],0,47,null,0,null],["2026-08-21",0,1,0,2,1,10,"Equipe educada e carinhosa com minha mãe.",[1],2,85,null,null,[[1],2]],["2026-08-21",0,2,0,1,1,4,"O agendamento funcionou, mas é burocrático. Ninguém me explicou o resultado do exame.",[3],0,80,null,null,null],["2026-08-21",0,2,2,3,0,10,"Agendamento simples e rápido.",[3],2,93,null,null,[[3],2]],["2026-08-21",1,2,0,2,1,3,"Muito tempo de espera e nenhuma previsão.",[0],0,80,null,null,null],["2026-08-22",1,0,3,2,0,4,"Ar-condicionado não funciona, muito calor.",[4],0,92,null,null,[[4],0]],["2026-08-22",1,0,0,3,1,4,"Liguei dez vezes e ninguém atende para marcar. Demora absurda, quase fui embora sem ser chamado.",[0,3],0,80,null,null,null],["2026-08-22",0,1,4,0,0,5,"Demora absurda, quase fui embora sem ser chamado.",[0],1,79,null,0,null],["2026-08-22",1,1,4,0,0,8,"Sala de espera confortável e limpa.",[4],2,80,null,0,null],["2026-08-22",1,1,4,2,1,10,"A enfermeira foi muito atenciosa comigo.",[1],1,74,null,1,null],["2026-08-22",1,1,4,3,0,8,"Esperei uns 40 minutos, dentro do normal. Equipe correta, só isso.",[0,1],1,94,null,0,null],["2026-08-22",0,2,0,1,1,6,"O sistema de agendamento vive fora do ar.",[0,3],1,69,null,null,[[3],0]],["2026-08-22",1,2,2,1,1,2,"Passei a manhã inteira esperando com dor.",[0],0,85,null,null,null],["2026-08-23",0,0,2,1,1,4,"Sala de espera confortável e limpa. O sistema de agendamento vive fora do ar.",[3,4],0,92,null,null,null],["2026-08-23",1,1,4,2,0,5,"Explicação confusa, cheia de termo técnico.",[2],0,83,null,0,null],["2026-08-23",1,1,0,1,1,6,"Chegou minha vez no horário marcado. Ninguém olhava na minha cara.",[0,1],0,76,null,null,[[0,1],0]],["2026-08-23",0,1,4,3,0,5,"Esperei mais de 3 horas para ser atendido.",[0],0,81,null,0,null],["2026-08-24",1,1,4,0,1,7,"Estrutura simples, mas funciona. Chegou minha vez no horário marcado.",[0,4],2,94,null,0,null],["2026-08-24",0,1,4,3,1,5,"Explicação confusa, cheia de termo técnico. Falta bebedouro para os pacientes.",[2],0,49,null,0,null],["2026-08-24",2,1,4,1,0,6,"Muito tempo de espera e nenhuma previsão.",[0],0,79,null,0,null],["2026-08-24",1,2,1,3,0,1,"Demorou dois meses pra conseguir vaga.",[3],0,89,null,null,null],["2026-08-24",0,2,0,0,1,2,"Ninguém me explicou o resultado do exame.",[1,2],0,78,null,null,null],["2026-08-25",0,0,3,0,0,7,"O sistema de agendamento vive fora do ar. Sala de espera confortável e limpa.",[4],0,58,null,null,[[3,4],0]],["2026-08-25",0,1,0,2,0,3,"Esperei mais de 3 horas para ser atendido.",[0],0,96,null,null,null],["2026-08-25",2,1,4,0,1,8,"Muito tempo de espera e nenhuma previsão.",[0,1],0,48,null,0,[[0],0]],["2026-08-25",0,2,0,3,0,9,"Fui atendido rapidinho.",[1],2,73,null,null,null],["2026-08-26",1,0,0,2,1,10,"Sala de espera confortável e limpa.",[4],2,87,null,null,null],["2026-08-26",0,0,0,2,1,2,"Ninguém me explicou o resultado do exame.",[2],0,86,null,null,null],["2026-08-26",2,1,4,2,1,8,"Entendi mais ou menos o que fazer.",[3],1,43,null,0,null],["2026-08-26",2,1,4,0,0,1,"Ninguém olhava na minha cara.",[1],0,94,null,0,null],["2026-08-26",0,1,4,0,0,8,"A enfermeira foi muito atenciosa comigo.",[1],2,76,null,0,null],["2026-08-26",1,2,1,1,0,5,"Liguei dez vezes e ninguém atende para marcar.",[3],0,83,null,null,null],["2026-08-26",0,2,0,1,1,9,"Chegou minha vez no horário marcado. Banheiro limpinho, estrutura boa.",[0,1],2,63,null,null,null],["2026-08-27",1,0,0,3,1,10,"O agendamento funcionou, mas é burocrático. O médico me tratou com muito respeito.",[1,3],2,73,null,null,[[1,3],2]],["2026-08-27",0,0,0,1,0,3,"Demora absurda, quase fui embora sem ser chamado.",[0],0,93,null,null,null],["2026-08-27",0,0,0,1,0,4,"Saí sem saber como tomar a medicação.",[2],0,95,null,null,[[2],0]],["2026-08-27",0,0,0,3,1,5,"Demorou dois meses pra conseguir vaga. Sala de espera confortável e limpa.",[3,4],0,94,null,null,null],["2026-08-27",1,2,2,3,0,6,"Explicaram o básico.",[2],1,73,null,null,[[2],1]],["2026-08-27",0,2,0,3,0,10,"Chegou minha vez no horário marcado. Explicaram o básico.",[0,2],2,87,null,null,null],["2026-08-27",0,2,0,0,0,10,"Equipe educada e carinhosa com minha mãe. Saí entendendo direitinho como tomar o remédio.",[1,2],2,82,null,null,null],["2026-08-28",0,0,1,0,1,8,"O agendamento funcionou, mas é burocrático.",[3],1,89,null,null,null],["2026-08-28",0,0,0,0,0,10,"O médico explicou tudo com calma.",[2],2,81,null,null,null],["2026-08-28",1,1,4,0,0,6,"Falta bebedouro para os pacientes. Demorou um pouco, mas deu pra aguentar.",[0,1],1,77,null,0,[[0,4],0]],["2026-08-28",0,2,0,3,0,7,"Atendimento normal, sem nada de especial.",[4],1,61,null,null,null],["2026-08-28",1,2,2,3,1,10,"Tiraram todas as minhas dúvidas.",[2],2,76,null,null,null],["2026-08-28",0,2,2,0,0,1,"O sistema de agendamento vive fora do ar.",[3],0,75,null,null,null],["2026-08-29",0,0,3,1,1,2,"A recepcionista foi grossa e impaciente. Consulta muito rápida, não deu pra perguntar nada.",[1,2],0,92,null,null,null],["2026-08-29",1,2,2,1,0,9,"O médico explicou tudo com calma.",[2],2,93,null,null,null],["2026-08-29",0,2,0,3,1,10,"Banheiro limpinho, estrutura boa.",[4],2,90,null,null,null],["2026-08-30",0,0,3,2,1,8,"Sala de espera confortável e limpa.",[4],2,80,null,null,null],["2026-08-30",1,0,0,2,0,6,"O sistema de agendamento vive fora do ar.",[3],0,76,null,null,null],["2026-08-30",0,1,4,0,0,8,"O médico explicou tudo com calma.",[2],2,97,null,0,null],["2026-08-30",2,1,4,1,0,1,"Banheiro sujo e sem papel. Ninguém me explicou o resultado do exame.",[2,4],0,95,null,0,null],["2026-08-30",1,1,4,3,1,8,"Equipe correta, só isso.",[1],1,98,null,0,[[1],1]],["2026-08-30",1,2,1,1,1,9,"Sala de espera confortável e limpa.",[4],2,97,null,null,[[4],2]],["2026-08-30",0,2,1,2,0,0,"A recepcionista foi grossa e impaciente.",[1],0,98,null,null,null],["2026-08-31",0,0,2,3,1,3,"Liguei dez vezes e ninguém atende para marcar.",[3],0,94,null,null,[[3],0]],["2026-08-31",1,1,0,1,0,10,"O médico me tratou com muito respeito.",[1,3],2,82,null,null,null],["2026-08-31",1,1,4,1,0,6,"Esperei mais de 3 horas para ser atendido. Atendimento normal, sem nada de especial.",[0,1],0,95,null,0,null],["2026-09-01",0,0,0,0,0,8,"Saí sem saber como tomar a medicação.",[2],0,75,null,null,null],["2026-09-02",1,0,0,2,0,10,"Esperei pouco, tudo bem organizado.",[0],2,79,null,null,null],["2026-09-02",0,0,0,3,1,6,"Esperei uns 40 minutos, dentro do normal.",[0],1,75,null,null,[[0],1]],["2026-09-02",0,2,0,1,1,5,"A recepcionista foi grossa e impaciente.",[1],0,76,null,null,null],["2026-09-02",0,2,0,3,1,8,"Banheiro limpinho, estrutura boa.",[4],2,82,null,null,null],["2026-09-02",0,2,0,0,1,3,"Passei a manhã inteira esperando com dor.",[0],0,90,null,null,[[0],0]],["2026-09-02",0,2,0,2,1,1,"Demorou dois meses pra conseguir vaga.",[3],0,89,null,null,null],["2026-09-03",1,0,0,3,0,9,"Fui atendido rapidinho. Marcar demorou alguns dias.",[0,1],2,80,null,null,[[0,3],2]],["2026-09-03",0,1,4,1,1,2,"Muito tempo de espera e nenhuma previsão.",[0],0,90,null,0,[[0],0]],["2026-09-03",1,2,1,2,1,1,"Cadeiras quebradas na sala de espera.",[4],0,73,null,null,null],["2026-09-04",0,1,4,0,0,10,"Saí entendendo direitinho como tomar o remédio. Sala de espera confortável e limpa.",[2,4],2,95,null,0,null],["2026-09-04",0,1,4,2,0,9,"Estrutura simples, mas funciona.",[4],1,72,null,0,[[4],1]],["2026-09-04",0,1,4,1,1,2,"Ar-condicionado não funciona, muito calor. O médico explicou tudo com calma.",[4],1,51,null,0,null],["2026-09-04",1,1,4,3,1,8,"Equipe educada e carinhosa com minha mãe. Banheiro limpinho, estrutura boa.",[1,4],2,95,null,0,null],["2026-09-04",1,2,0,3,1,6,"Demorou dois meses pra conseguir vaga. Esperei pouco, tudo bem organizado.",[0,3],0,93,null,null,[[0,3],0]],["2026-09-05",0,0,1,2,1,9,"Chegou minha vez no horário marcado.",[1],2,50,null,null,null],["2026-09-06",1,0,0,0,1,10,"Saí entendendo direitinho como tomar o remédio.",[2],2,86,null,null,null],["2026-09-06",1,0,1,0,0,4,"Chegou minha vez no horário marcado. Liguei dez vezes e ninguém atende para marcar.",[0],0,68,null,null,null],["2026-09-06",0,1,4,0,0,3,"Muito tempo de espera e nenhuma previsão.",[0],0,80,null,0,null],["2026-09-06",0,1,0,2,0,7,"O médico explicou tudo com calma.",[2],2,80,null,null,null],["2026-09-06",0,1,4,1,1,3,"Passei a manhã inteira esperando com dor.",[0,2],0,54,null,0,null],["2026-09-06",1,1,0,1,1,3,"Tiraram todas as minhas dúvidas. Passei a manhã inteira esperando com dor.",[0,2],0,73,null,null,null],["2026-09-06",0,1,4,1,1,7,"Banheiro sujo e sem papel. Esperei pouco, tudo bem organizado.",[0,4],1,62,null,0,null],["2026-09-06",1,1,4,2,1,9,"A enfermeira foi muito atenciosa comigo.",[1],2,94,null,0,null],["2026-09-06",0,1,4,1,1,4,"Demora absurda, quase fui embora sem ser chamado.",[0],0,86,null,0,null],["2026-09-06",1,2,0,3,0,9,"Banheiro limpinho, estrutura boa.",[4],2,93,null,null,null],["2026-09-07",0,0,0,3,0,9,"O médico explicou tudo com calma.",[2],2,96,null,null,null],["2026-09-07",1,0,3,1,0,8,"Estrutura simples, mas funciona.",[2],1,52,null,null,null],["2026-09-07",0,0,2,3,0,1,"Saí sem saber como tomar a medicação.",[2],0,76,null,null,null],["2026-09-07",0,0,0,2,1,9,"Banheiro limpinho, estrutura boa.",[3,4],1,42,null,null,null],["2026-09-07",0,1,4,3,0,5,"A recepcionista foi grossa e impaciente.",[1],0,89,null,0,null],["2026-09-07",2,1,4,0,1,3,"Ninguém me explicou o resultado do exame.",[2],0,96,null,0,[[2],0]],["2026-09-07",0,1,0,2,0,1,"Banheiro limpinho, estrutura boa. Fila enorme e ninguém informava nada.",[0,1],0,63,null,null,[[0,4],0]],["2026-09-07",1,1,0,1,0,0,"Muito tempo de espera e nenhuma previsão.",[0],0,76,null,null,null],["2026-09-07",0,1,4,3,1,9,"A enfermeira foi muito atenciosa comigo. O médico explicou tudo com calma.",[1,2],2,81,null,0,null],["2026-09-07",0,1,4,0,1,9,"Tiraram todas as minhas dúvidas.",[2],2,82,null,0,null],["2026-09-07",1,2,0,1,0,5,"Tiraram todas as minhas dúvidas. Cadeiras quebradas na sala de espera.",[2,4],0,86,null,null,null],["2026-09-07",1,2,1,2,1,8,"Local ok. O agendamento funcionou, mas é burocrático.",[3,4],1,97,null,null,[[3,4],1]],["2026-09-07",0,2,2,1,0,9,"Banheiro limpinho, estrutura boa.",[4],2,95,null,null,null],["2026-09-07",0,2,2,2,0,7,"O sistema de agendamento vive fora do ar.",[3],0,73,null,null,null],["2026-09-07",1,2,0,0,0,9,"O médico me tratou com muito respeito.",[3],2,57,null,null,null],["2026-09-07",0,2,2,3,1,9,"Estrutura simples, mas funciona.",[4],1,73,null,null,[[4],1]],["2026-09-08",0,0,3,2,1,10,"Fui atendido rapidinho.",[0],2,83,null,null,[[0],2]],["2026-09-08",0,1,4,1,1,9,"Banheiro limpinho, estrutura boa.",[4],2,88,null,0,null],["2026-09-08",1,1,4,2,1,1,"Ninguém me explicou o resultado do exame.",[2],0,76,null,0,[[2],0]],["2026-09-08",1,1,4,1,1,9,"Fui atendido rapidinho.",[0],1,61,null,0,null],["2026-09-08",1,2,2,3,0,2,"Saí sem saber como tomar a medicação.",[4],1,82,null,null,null],["2026-09-08",1,2,2,2,0,9,"Tiraram todas as minhas dúvidas.",[2],2,98,null,null,null],["2026-09-08",1,2,1,3,1,5,"Demora absurda, quase fui embora sem ser chamado.",[0],0,96,null,null,null],["2026-09-09",0,0,1,3,1,1,"Consulta muito rápida, não deu pra perguntar nada.",[2],0,88,null,null,null],["2026-09-09",1,0,1,1,0,3,"O sistema de agendamento vive fora do ar.",[3],0,98,null,null,null],["2026-09-09",1,2,0,2,0,9,"Agendamento simples e rápido.",[2],2,69,null,null,null],["2026-09-09",0,2,0,2,1,6,"Esperei mais de 3 horas para ser atendido.",[0],0,92,null,null,null],["2026-09-09",0,2,2,3,0,4,"Fui atendido rapidinho. Liguei dez vezes e ninguém atende para marcar.",[0,3],0,92,null,null,[[0,3],0]],["2026-09-10",1,0,2,1,0,8,"Estrutura simples, mas funciona.",[4],1,73,null,null,null],["2026-09-10",1,0,1,2,1,7,"Equipe correta, só isso.",[1],1,95,null,null,null],["2026-09-10",0,0,0,3,1,10,"Esperei pouco, tudo bem organizado.",[0],2,93,null,null,null],["2026-09-10",1,0,0,1,0,3,"Explicação confusa, cheia de termo técnico.",[2],0,93,null,null,null],["2026-09-10",1,1,4,1,0,5,"Falta bebedouro para os pacientes. Chegou minha vez no horário marcado.",[0,4],0,75,null,0,null],["2026-09-10",0,1,4,0,1,6,"Local ok.",[4],1,75,null,0,null],["2026-09-10",0,1,4,0,0,3,"Passei a manhã inteira esperando com dor.",[1],0,56,null,0,[[0],0]],["2026-09-11",0,0,1,3,1,6,"Liguei dez vezes e ninguém atende para marcar.",[3],0,76,null,null,null],["2026-09-11",0,2,2,3,1,9,"A enfermeira foi muito atenciosa comigo.",[1],2,76,null,null,null],["2026-09-11",0,2,2,3,1,3,"Sala de espera confortável e limpa. O sistema de agendamento vive fora do ar.",[3],0,49,null,null,null],["2026-09-11",0,2,2,2,1,8,"Estrutura simples, mas funciona.",[1,4],1,82,null,null,null],["2026-09-11",0,2,0,2,0,10,"Sala de espera confortável e limpa.",[4],2,78,null,null,null],["2026-09-12",1,0,0,2,0,9,"Saí entendendo direitinho como tomar o remédio.",[1,2],2,72,null,null,null],["2026-09-12",0,0,0,1,1,9,"Entendi mais ou menos o que fazer.",[1,2],0,79,null,null,null],["2026-09-12",2,1,4,2,1,5,"O médico me tratou com muito respeito. Passei a manhã inteira esperando com dor.",[1,4],0,66,null,0,null],["2026-09-12",1,1,4,2,0,10,"Fui atendido rapidinho.",[0],2,74,null,0,null],["2026-09-12",0,2,0,2,0,4,"O sistema de agendamento vive fora do ar.",[4],0,57,null,null,null],["2026-09-12",1,2,0,1,1,0,"Fila enorme e ninguém informava nada.",[0],0,75,null,null,null],["2026-09-13",0,0,2,3,1,4,"Esperei mais de 3 horas para ser atendido. Demorou dois meses pra conseguir vaga.",[0,1],0,68,null,null,[[0,3],0]],["2026-09-13",1,1,4,1,0,5,"Demora absurda, quase fui embora sem ser chamado. Cadeiras quebradas na sala de espera.",[0,4],0,95,null,0,null],["2026-09-13",0,1,0,0,1,6,"Demora absurda, quase fui embora sem ser chamado.",[0],0,91,null,null,null],["2026-09-13",0,1,4,0,1,5,"Fila enorme e ninguém informava nada.",[0],0,96,null,1,null],["2026-09-13",2,1,4,1,1,9,"Chegou minha vez no horário marcado. Estrutura simples, mas funciona.",[0,4],2,84,null,1,null],["2026-09-13",0,1,4,0,1,7,"Explicação confusa, cheia de termo técnico. A enfermeira foi muito atenciosa comigo.",[2],0,71,null,0,[[1,2],0]],["2026-09-14",2,1,4,1,1,3,"Esperei mais de 3 horas para ser atendido. Saí entendendo direitinho como tomar o remédio.",[0,2],0,88,null,0,null],["2026-09-14",0,1,4,0,1,2,"Ninguém me explicou o resultado do exame.",[2],0,95,null,1,null],["2026-09-14",0,1,4,0,1,4,"Cadeiras quebradas na sala de espera.",[4],1,61,null,0,null],["2026-09-14",0,1,4,2,1,2,"Passei a manhã inteira esperando com dor.",[0],0,88,null,0,null],["2026-09-14",0,2,0,0,0,9,"Chegou minha vez no horário marcado.",[0,1],2,49,null,null,null],["2026-09-14",1,2,2,2,0,9,"Fui atendido rapidinho. Consegui marcar pelo WhatsApp fácil.",[0,3],1,74,null,null,[[0,3],2]],["2026-09-15",0,0,2,1,1,3,"Banheiro sujo e sem papel.",[1],0,79,null,null,[[4],0]],["2026-09-15",0,0,3,3,0,8,"A espera foi razoável.",[0],0,71,null,null,null],["2026-09-15",1,0,0,3,0,10,"Chegou minha vez no horário marcado. Sala de espera confortável e limpa.",[0,4],2,77,null,null,null],["2026-09-15",1,1,4,0,0,6,"Banheiro sujo e sem papel.",[1],0,45,null,0,null],["2026-09-15",1,1,0,2,0,0,"Fila enorme e ninguém informava nada.",[0],0,92,null,null,null],["2026-09-15",0,1,4,1,1,8,"Equipe correta, só isso.",[1,4],1,62,null,0,null],["2026-09-16",0,0,3,3,0,10,"Tiraram todas as minhas dúvidas.",[2],2,75,null,null,null],["2026-09-16",1,1,4,0,0,6,"Ar-condicionado não funciona, muito calor.",[2],0,73,null,0,[[4],0]],["2026-09-16",0,2,0,2,1,10,"Chegou minha vez no horário marcado.",[0,2],2,50,null,null,null],["2026-09-17",1,0,0,1,0,0,"Fui tratado com descaso.",[1],0,97,null,null,[[1],0]],["2026-09-17",0,1,4,0,0,5,"Cadeiras quebradas na sala de espera.",[4],0,96,null,0,null],["2026-09-17",0,2,0,2,1,10,"Saí entendendo direitinho como tomar o remédio.",[2],2,87,null,null,null],["2026-09-17",1,2,2,3,0,3,"Saí sem saber como tomar a medicação.",[2,3],0,55,null,null,null],["2026-09-18",1,1,4,1,1,0,"O médico me tratou com muito respeito. Ninguém me explicou o resultado do exame.",[1,2],0,85,null,0,null],["2026-09-18",0,1,0,1,1,0,"Fila enorme e ninguém informava nada.",[0],0,90,null,null,null],["2026-09-18",0,1,4,2,0,8,"Banheiro limpinho, estrutura boa. Equipe correta, só isso.",[1,4],2,85,null,1,null],["2026-09-18",0,2,1,2,1,4,"Saí sem saber como tomar a medicação.",[2],0,91,null,null,null],["2026-09-18",0,2,2,3,0,9,"Chegou minha vez no horário marcado.",[0],2,73,null,null,null],["2026-09-19",0,1,4,3,0,9,"Sala de espera confortável e limpa.",[4],1,59,null,0,[[4],2]],["2026-09-19",0,2,2,2,1,1,"O sistema de agendamento vive fora do ar.",[1,3],0,48,null,null,null],["2026-09-20",0,1,4,2,0,3,"Fui tratado com descaso. Consulta muito rápida, não deu pra perguntar nada.",[1,2],1,50,null,0,null],["2026-09-20",0,1,4,1,0,9,"Sala de espera confortável e limpa.",[4],2,72,null,0,null],["2026-09-21",0,0,3,2,1,10,"Sala de espera confortável e limpa.",[4],2,93,null,null,null],["2026-09-21",0,0,0,2,1,8,"Local ok.",[4],1,79,null,null,null],["2026-09-22",1,1,4,1,0,1,"Fui tratado com descaso.",[1],1,49,null,0,null],["2026-09-22",0,1,4,1,1,2,"Esperei mais de 3 horas para ser atendido. O médico me tratou com muito respeito.",[0,1],0,82,null,0,null],["2026-09-22",0,2,2,2,1,3,"Ninguém me explicou o resultado do exame. Fila enorme e ninguém informava nada.",[0,2],0,75,null,null,null],["2026-09-22",0,2,0,2,0,10,"Fui atendido rapidinho.",[0],2,90,null,null,[[0],2]],["2026-09-22",1,2,0,3,0,8,"A enfermeira foi muito atenciosa comigo.",[1],1,74,null,null,null],["2026-09-23",1,0,0,2,1,4,"Esperei mais de 3 horas para ser atendido.",[0],0,96,null,null,[[0],0]],["2026-09-23",1,0,2,3,0,6,"Esperei mais de 3 horas para ser atendido.",[0,1],0,68,null,null,null],["2026-09-23",0,2,0,2,0,9,"O médico explicou tudo com calma. Equipe correta, só isso.",[1,2],2,96,null,null,null],["2026-09-24",0,0,3,1,0,10,"Esperei pouco, tudo bem organizado.",[0],2,83,null,null,[[0],2]],["2026-09-24",2,1,4,1,0,10,"Equipe educada e carinhosa com minha mãe.",[1,4],2,47,null,0,null],["2026-09-24",1,2,2,3,0,3,"Cadeiras quebradas na sala de espera.",[4],0,75,null,null,null],["2026-09-24",1,2,0,2,0,10,"Consegui marcar pelo WhatsApp fácil.",[3],2,91,null,null,null],["2026-09-24",0,2,0,3,0,8,"Fila enorme e ninguém informava nada.",[0],0,76,null,null,null],["2026-09-24",0,2,0,1,0,4,"A espera foi razoável. Falta bebedouro para os pacientes.",[0,4],0,77,null,null,null],["2026-09-25",1,1,4,1,1,9,"Fui atendido rapidinho.",[0],2,88,null,0,null],["2026-09-25",1,1,4,2,0,5,"Explicação confusa, cheia de termo técnico.",[2,4],0,73,null,0,null],["2026-09-25",0,2,0,2,1,5,"Demora absurda, quase fui embora sem ser chamado. Agendamento simples e rápido.",[0,3],0,76,null,null,null],["2026-09-25",0,2,2,0,1,10,"A enfermeira foi muito atenciosa comigo. A espera foi razoável.",[0,1],2,72,null,null,null],["2026-09-26",0,1,4,1,1,9,"Equipe educada e carinhosa com minha mãe.",[4],1,47,null,0,[[1],2]],["2026-09-26",0,1,4,1,1,7,"Saí entendendo direitinho como tomar o remédio. Esperei mais de 3 horas para ser atendido.",[2],1,52,null,0,null],["2026-09-26",1,1,4,1,1,4,"Demora absurda, quase fui embora sem ser chamado. Falta bebedouro para os pacientes.",[0],0,60,null,0,null],["2026-09-26",1,2,1,2,1,2,"Esperei mais de 3 horas para ser atendido.",[0],0,88,null,null,null],["2026-09-27",0,1,4,2,0,4,"Esperei mais de 3 horas para ser atendido.",[0],0,72,null,0,null],["2026-09-27",0,1,4,0,0,1,"Falta bebedouro para os pacientes.",[4],0,72,null,0,null],["2026-09-28",1,0,3,3,1,3,"Ninguém me explicou o resultado do exame. Banheiro limpinho, estrutura boa.",[2,4],1,61,null,null,null],["2026-09-28",0,0,0,1,1,6,"Demorou dois meses pra conseguir vaga. Demorou um pouco, mas deu pra aguentar.",[0,3],0,85,null,null,null],["2026-09-28",2,1,4,1,1,2,"A recepcionista foi grossa e impaciente.",[0],0,44,null,0,null],["2026-09-28",2,1,4,0,1,5,"Muito tempo de espera e nenhuma previsão. Entendi mais ou menos o que fazer.",[0,2],0,96,null,0,null],["2026-09-28",0,2,0,2,1,2,"Esperei mais de 3 horas para ser atendido. A enfermeira foi muito atenciosa comigo.",[0,1],1,44,null,null,null],["2026-09-28",1,2,1,3,0,9,"Chegou minha vez no horário marcado.",[0],1,49,null,null,null],["2026-09-28",1,2,1,1,1,5,"Esperei pouco, tudo bem organizado. A recepcionista foi grossa e impaciente.",[0,1],1,44,null,null,null],["2026-09-29",0,0,2,1,0,8,"Equipe educada e carinhosa com minha mãe.",[1],2,82,null,null,null],["2026-09-29",1,2,1,2,1,3,"Demorou dois meses pra conseguir vaga. Fui tratado com descaso.",[1,3],1,61,null,null,null],["2026-09-29",1,2,0,1,1,6,"Saí sem saber como tomar a medicação. Banheiro limpinho, estrutura boa.",[2,4],0,85,null,null,null],["2026-09-29",0,2,2,2,0,4,"Ninguém me explicou o resultado do exame.",[2],0,75,null,null,null],["2026-09-30",0,0,2,1,1,9,"Explicaram o básico.",[2],2,51,null,null,[[2],1]],["2026-09-30",1,0,0,0,0,9,"Saí entendendo direitinho como tomar o remédio.",[0],2,67,null,null,null],["2026-09-30",0,1,0,1,1,10,"Tiraram todas as minhas dúvidas.",[2],2,96,null,null,null],["2026-09-30",1,1,4,3,1,4,"Fila enorme e ninguém informava nada.",[0],0,72,null,1,null],["2026-09-30",0,1,4,1,0,2,"Fui tratado com descaso.",[1],0,73,null,0,null],["2026-09-30",1,1,4,3,0,3,"Esperei mais de 3 horas para ser atendido. Falta bebedouro para os pacientes.",[0,4],0,88,null,0,null],["2026-09-30",1,2,0,3,0,10,"Agendamento simples e rápido. Saí entendendo direitinho como tomar o remédio.",[2,3],2,83,null,null,null],["2026-09-30",1,2,0,3,1,1,"Cadeiras quebradas na sala de espera. Saí sem saber como tomar a medicação.",[1,2],0,79,null,null,null],["2026-10-01",2,1,4,1,1,1,"Saí sem saber como tomar a medicação.",[2],1,59,null,0,null],["2026-10-01",0,1,4,2,0,4,"Falta bebedouro para os pacientes.",[4],0,93,null,0,null],["2026-10-01",1,2,0,3,1,0,"Banheiro limpinho, estrutura boa. Demorou dois meses pra conseguir vaga.",[3,4],0,83,null,null,[[3,4],0]],["2026-10-02",0,0,0,1,1,0,"Sala de espera confortável e limpa. Saí sem saber como tomar a medicação.",[2,4],0,89,null,null,null],["2026-10-02",1,1,4,1,0,5,"Ninguém me explicou o resultado do exame. Passei a manhã inteira esperando com dor.",[1,2],0,72,null,0,[[0,2],0]],["2026-10-02",0,1,4,3,0,10,"Banheiro limpinho, estrutura boa.",[4],2,94,null,0,null],["2026-10-02",0,2,1,1,0,10,"Saí entendendo direitinho como tomar o remédio.",[2],2,86,null,null,[[2],2]],["2026-10-02",0,2,0,1,1,10,"Tiraram todas as minhas dúvidas.",[2],2,90,null,null,null],["2026-10-02",1,2,0,1,0,7,"Atendimento normal, sem nada de especial.",[1],2,65,null,null,null],["2026-10-03",0,0,1,1,0,9,"Estrutura simples, mas funciona.",[3],1,71,null,null,null],["2026-10-03",0,0,1,0,0,7,"O agendamento funcionou, mas é burocrático.",[3],1,80,null,null,null],["2026-10-04",0,0,0,3,1,3,"Saí sem saber como tomar a medicação.",[2],0,91,null,null,[[2],0]],["2026-10-04",1,0,3,1,0,5,"Demorou dois meses pra conseguir vaga.",[3],0,90,null,null,null],["2026-10-04",0,1,4,1,0,4,"Explicação confusa, cheia de termo técnico.",[2],1,54,null,0,[[2],0]],["2026-10-04",1,1,4,1,0,9,"Entendi mais ou menos o que fazer.",[2],1,83,null,0,[[2],1]],["2026-10-04",1,2,2,3,0,3,"Entendi mais ou menos o que fazer. Demorou dois meses pra conseguir vaga.",[3],0,53,null,null,null],["2026-10-04",1,2,0,3,0,6,"Cadeiras quebradas na sala de espera.",[1,4],0,82,null,null,[[4],0]],["2026-10-05",0,0,3,1,1,9,"Consegui marcar pelo WhatsApp fácil.",[3],2,78,null,null,null],["2026-10-05",0,0,1,3,1,5,"Ninguém me explicou o resultado do exame.",[2],0,72,null,null,[[2],0]],["2026-10-05",1,2,1,3,0,3,"Esperei pouco, tudo bem organizado. O sistema de agendamento vive fora do ar.",[0,3],0,75,null,null,null],["2026-10-05",1,2,0,0,1,4,"O sistema de agendamento vive fora do ar. Banheiro limpinho, estrutura boa.",[1,3],1,51,null,null,null],["2026-10-06",1,1,4,3,1,9,"Me ligaram para confirmar a consulta, gostei.",[3],2,96,null,0,[[3],2]],["2026-10-07",0,0,0,1,1,6,"A recepcionista foi grossa e impaciente.",[2],0,43,null,null,[[1],0]],["2026-10-07",0,0,1,1,1,0,"Ninguém me explicou o resultado do exame.",[2],0,73,null,null,null],["2026-10-07",1,1,4,3,1,4,"Ar-condicionado não funciona, muito calor.",[4],0,90,null,1,null],["2026-10-07",1,1,0,1,0,10,"Tiraram todas as minhas dúvidas.",[1],2,51,null,null,null],["2026-10-08",0,0,3,1,1,6,"Explicação confusa, cheia de termo técnico.",[0,1],0,59,null,null,[[2],0]],["2026-10-08",0,2,2,1,0,9,"Saí entendendo direitinho como tomar o remédio.",[2],2,77,null,null,null],["2026-10-09",0,0,0,1,0,10,"Banheiro limpinho, estrutura boa.",[4],2,93,null,null,null],["2026-10-09",1,1,4,1,1,3,"Passei a manhã inteira esperando com dor. Atendimento normal, sem nada de especial.",[0,3],0,68,null,0,null],["2026-10-09",0,2,0,2,1,10,"O médico me tratou com muito respeito.",[1],2,97,null,null,null],["2026-10-10",1,2,1,0,0,7,"Me ligaram para confirmar a consulta, gostei.",[3],2,92,null,null,null],["2026-10-10",0,2,2,0,0,8,"Equipe educada e carinhosa com minha mãe.",[1],2,93,null,null,null],["2026-10-10",0,2,0,2,1,5,"Consulta muito rápida, não deu pra perguntar nada.",[2],0,75,null,null,[[2],0]],["2026-10-11",0,0,2,1,0,8,"Cadeiras quebradas na sala de espera. O agendamento funcionou, mas é burocrático.",[3,4],0,80,null,null,null],["2026-10-11",1,0,3,1,0,5,"Passei a manhã inteira esperando com dor.",[0],0,77,null,null,null],["2026-10-11",0,0,3,2,1,8,"Marcar demorou alguns dias. Estrutura simples, mas funciona.",[3,4],1,87,null,null,[[3,4],1]],["2026-10-11",0,1,4,1,0,6,"Falta bebedouro para os pacientes.",[1,4],0,47,null,1,[[4],0]],["2026-10-11",1,1,4,0,1,8,"Esperei uns 40 minutos, dentro do normal.",[0],1,74,null,0,null],["2026-10-11",2,1,4,1,1,9,"A enfermeira foi muito atenciosa comigo.",[3],2,80,null,1,null],["2026-10-12",1,0,3,2,1,4,"Muito tempo de espera e nenhuma previsão.",[0],0,92,null,null,[[0],0]],["2026-10-12",0,1,4,1,0,6,"Equipe correta, só isso.",[1],1,87,null,0,null],["2026-10-12",0,1,4,0,1,3,"Cadeiras quebradas na sala de espera. Esperei mais de 3 horas para ser atendido.",[0,4],0,83,null,0,null],["2026-10-12",1,1,4,2,0,3,"Muito tempo de espera e nenhuma previsão.",[0],0,91,null,0,[[0],0]],["2026-10-12",0,1,4,2,1,0,"Banheiro sujo e sem papel.",[4],0,80,null,0,null],["2026-10-12",0,1,0,0,0,1,"A recepcionista foi grossa e impaciente. Banheiro sujo e sem papel.",[1,4],0,79,null,null,null],["2026-10-12",0,2,0,3,0,9,"Saí entendendo direitinho como tomar o remédio.",[2],2,78,null,null,null],["2026-10-13",1,0,3,3,1,7,"Fui tratado com descaso. Entendi mais ou menos o que fazer.",[1,2],1,70,null,null,[[1,2],0]],["2026-10-13",0,1,4,0,1,3,"Passei a manhã inteira esperando com dor.",[0,1],0,52,null,0,null],["2026-10-13",1,1,4,1,0,10,"Sala de espera confortável e limpa.",[4],2,91,null,0,[[4],2]],["2026-10-13",1,2,0,3,0,8,"Equipe educada e carinhosa com minha mãe.",[1,4],2,59,null,null,null],["2026-10-13",0,2,2,3,1,1,"Chegou minha vez no horário marcado. O sistema de agendamento vive fora do ar.",[0,3],0,94,null,null,null],["2026-10-13",1,2,2,3,0,5,"A recepcionista foi grossa e impaciente.",[0,1],1,60,null,null,null],["2026-10-13",1,2,0,3,0,5,"Demorou dois meses pra conseguir vaga.",[3],0,88,null,null,null],["2026-10-14",1,1,4,0,0,5,"Equipe educada e carinhosa com minha mãe. Banheiro sujo e sem papel.",[1,4],0,72,null,0,null],["2026-10-14",0,1,0,3,1,4,"Tiraram todas as minhas dúvidas. Fila enorme e ninguém informava nada.",[0,2],0,94,null,null,null],["2026-10-14",0,1,4,0,1,8,"Saí entendendo direitinho como tomar o remédio.",[2],2,86,null,1,null],["2026-10-14",2,1,4,3,1,4,"Demorou dois meses pra conseguir vaga.",[3],0,94,null,1,null],["2026-10-14",1,1,4,0,1,9,"O médico explicou tudo com calma.",[0],2,48,null,0,null],["2026-10-14",0,2,0,1,1,10,"A enfermeira foi muito atenciosa comigo.",[1],2,86,null,null,[[1],2]],["2026-10-14",1,2,2,2,0,4,"Explicação confusa, cheia de termo técnico.",[2],0,82,null,null,null],["2026-10-15",0,1,4,1,0,7,"Ar-condicionado não funciona, muito calor.",[4],0,97,null,0,[[4],0]],["2026-10-15",0,2,2,3,1,9,"O agendamento funcionou, mas é burocrático.",[3],1,92,null,null,null],["2026-10-16",0,0,2,0,0,10,"Atendimento normal, sem nada de especial. Consegui marcar pelo WhatsApp fácil.",[1,3],2,93,null,null,null],["2026-10-16",0,0,3,1,1,3,"A recepcionista foi grossa e impaciente.",[1],1,63,null,null,null],["2026-10-16",0,1,4,0,1,3,"Muito tempo de espera e nenhuma previsão.",[0],0,79,null,0,null],["2026-10-16",0,2,0,3,0,10,"Sala de espera confortável e limpa.",[1,3],2,59,null,null,null],["2026-10-16",0,2,2,3,0,9,"Chegou minha vez no horário marcado.",[0],1,78,null,null,[[0],2]],["2026-10-16",1,2,1,3,0,8,"Esperei pouco, tudo bem organizado.",[0,2],2,68,null,null,[[0],2]],["2026-10-17",0,0,0,2,0,4,"Fila enorme e ninguém informava nada.",[0],1,55,null,null,[[0],0]],["2026-10-17",0,0,0,0,1,9,"Banheiro limpinho, estrutura boa.",[1,4],2,49,null,null,null],["2026-10-17",0,0,3,3,0,10,"Marcar demorou alguns dias.",[3],1,78,null,null,null],["2026-10-17",0,1,4,1,0,5,"Muito tempo de espera e nenhuma previsão. Falta bebedouro para os pacientes.",[0,4],0,84,null,0,null],["2026-10-17",1,1,0,0,1,4,"Passei a manhã inteira esperando com dor.",[0],0,72,null,null,null],["2026-10-17",0,2,2,0,0,9,"Equipe correta, só isso.",[1],1,75,null,null,null],["2026-10-17",0,2,0,2,0,9,"Saí entendendo direitinho como tomar o remédio.",[2],2,74,null,null,null],["2026-10-17",1,2,2,2,1,3,"Demorou dois meses pra conseguir vaga. Saí sem saber como tomar a medicação.",[2,3],0,86,null,null,[[2,3],0]],["2026-10-17",1,2,0,0,1,9,"Sala de espera confortável e limpa.",[1,4],2,48,null,null,null],["2026-10-18",1,0,0,2,0,3,"Demora absurda, quase fui embora sem ser chamado. O médico me tratou com muito respeito.",[0,1],0,74,null,null,null],["2026-10-18",0,2,2,3,1,9,"Agendamento simples e rápido.",[3],2,75,null,null,[[3],2]],["2026-10-18",1,2,2,2,1,9,"Consegui marcar pelo WhatsApp fácil. Entendi mais ou menos o que fazer.",[2,3],2,93,null,null,[[2,3],2]],["2026-10-18",1,2,0,3,0,3,"Demorou dois meses pra conseguir vaga.",[3],0,93,null,null,null],["2026-10-19",0,0,0,1,0,7,"Entendi mais ou menos o que fazer.",[2],1,77,null,null,null],["2026-10-19",1,0,2,2,1,9,"Equipe educada e carinhosa com minha mãe.",[1],2,86,null,null,null],["2026-10-19",2,1,4,1,0,9,"A enfermeira foi muito atenciosa comigo.",[1],2,79,null,0,null],["2026-10-19",0,1,4,2,1,9,"Sala de espera confortável e limpa. Saí entendendo direitinho como tomar o remédio.",[2],2,61,null,0,null],["2026-10-19",0,2,0,2,0,10,"Chegou minha vez no horário marcado.",[0],2,89,null,null,null],["2026-10-20",1,0,1,2,1,5,"Demora absurda, quase fui embora sem ser chamado.",[0],1,75,null,null,null],["2026-10-20",0,1,0,0,0,9,"Entendi mais ou menos o que fazer. Equipe educada e carinhosa com minha mãe.",[1,2],2,75,null,null,null],["2026-10-20",0,1,4,1,1,9,"Saí entendendo direitinho como tomar o remédio.",[2],2,82,null,1,null],["2026-10-21",0,0,0,2,1,9,"Fui atendido rapidinho. Estrutura simples, mas funciona.",[0,4],2,98,null,null,[[0,4],2]],["2026-10-21",2,1,4,2,1,10,"Tiraram todas as minhas dúvidas.",[2],2,80,null,0,null],["2026-10-21",1,1,4,2,1,8,"O agendamento funcionou, mas é burocrático. Demorou um pouco, mas deu pra aguentar.",[2],1,45,null,0,null],["2026-10-21",1,1,0,2,1,2,"Sala de espera confortável e limpa. Saí sem saber como tomar a medicação.",[2,4],0,96,null,null,null],["2026-10-21",0,2,1,2,1,9,"Me ligaram para confirmar a consulta, gostei. Esperei pouco, tudo bem organizado.",[0,3],2,81,null,null,[[0,3],2]],["2026-10-22",1,0,0,3,1,10,"Tiraram todas as minhas dúvidas.",[2],2,74,null,null,null],["2026-10-22",1,0,3,3,0,7,"Marcar demorou alguns dias.",[3],1,94,null,null,null],["2026-10-22",0,1,4,2,0,6,"Ar-condicionado não funciona, muito calor.",[4],0,96,null,0,null],["2026-10-22",0,2,1,1,0,1,"Ninguém olhava na minha cara.",[1],1,67,null,null,null],["2026-10-22",0,2,0,1,0,3,"Consulta muito rápida, não deu pra perguntar nada.",[2],0,85,null,null,null],["2026-10-22",0,2,0,1,0,4,"Fila enorme e ninguém informava nada.",[0],0,89,null,null,null],["2026-10-23",0,0,0,2,0,10,"Explicaram o básico. Fui atendido rapidinho.",[0],2,49,null,null,[[0,2],2]],["2026-10-23",1,1,4,1,1,2,"Explicação confusa, cheia de termo técnico.",[2],0,98,null,0,null],["2026-10-23",1,2,2,1,1,2,"O sistema de agendamento vive fora do ar.",[4],0,46,null,null,null],["2026-10-23",1,2,0,1,1,9,"Tiraram todas as minhas dúvidas.",[1,2],2,43,null,null,[[2],2]],["2026-10-24",0,0,1,3,0,2,"Consulta muito rápida, não deu pra perguntar nada.",[2],0,91,null,null,[[2],0]],["2026-10-24",0,0,0,3,0,8,"Local ok.",[4],1,72,null,null,null],["2026-10-24",1,1,4,1,0,4,"Saí sem saber como tomar a medicação.",[4],0,50,null,0,null],["2026-10-24",1,1,4,1,0,3,"Falta bebedouro para os pacientes.",[4],0,87,null,0,[[4],0]],["2026-10-24",1,2,0,3,0,8,"O sistema de agendamento vive fora do ar. Sala de espera confortável e limpa.",[1,3],0,51,null,null,[[3,4],0]],["2026-10-24",1,2,1,2,0,6,"Marcar demorou alguns dias. Explicaram o básico.",[2,3],0,64,null,null,null],["2026-10-24",0,2,2,3,0,8,"O médico me tratou com muito respeito.",[1],2,89,null,null,null],["2026-10-25",1,1,4,2,1,3,"Demora absurda, quase fui embora sem ser chamado.",[0],0,76,null,0,null],["2026-10-26",0,0,3,1,0,6,"Equipe correta, só isso.",[1],1,90,null,null,null],["2026-10-26",1,1,4,3,0,8,"Banheiro limpinho, estrutura boa. Tiraram todas as minhas dúvidas.",[2],2,60,null,0,null],["2026-10-26",0,2,1,1,1,8,"Esperei uns 40 minutos, dentro do normal.",[0],1,78,null,null,null],["2026-10-27",0,0,2,1,0,9,"Banheiro limpinho, estrutura boa.",[0],2,62,null,null,[[4],2]],["2026-10-27",1,0,0,0,0,8,"A enfermeira foi muito atenciosa comigo.",[1],1,46,null,null,null],["2026-10-27",1,0,0,1,1,3,"Demorou dois meses pra conseguir vaga.",[0,3],0,54,null,null,null],["2026-10-27",1,0,0,1,1,9,"Me ligaram para confirmar a consulta, gostei.",[3],2,74,null,null,null],["2026-10-27",1,1,0,1,1,7,"Banheiro sujo e sem papel.",[4],0,77,null,null,[[4],0]],["2026-10-27",0,1,4,2,1,1,"Explicação confusa, cheia de termo técnico.",[0,2],0,62,null,0,null],["2026-10-27",2,1,4,3,1,6,"Entendi mais ou menos o que fazer.",[2],1,73,null,0,null],["2026-10-27",0,2,1,2,1,8,"Me ligaram para confirmar a consulta, gostei.",[3],2,95,null,null,null],["2026-10-27",1,2,1,2,0,8,"Fui atendido rapidinho. Banheiro limpinho, estrutura boa.",[0],2,74,null,null,[[0,4],2]],["2026-10-28",0,0,0,0,0,3,"O sistema de agendamento vive fora do ar.",[3],0,96,null,null,null],["2026-10-28",0,1,4,1,1,9,"Explicaram o básico.",[2],1,84,null,0,null],["2026-10-28",0,1,4,3,0,4,"Fila enorme e ninguém informava nada.",[0],0,75,null,1,null],["2026-10-28",1,2,1,3,0,9,"Fui atendido rapidinho.",[4],2,65,null,null,null],["2026-10-29",0,0,0,3,1,4,"Explicação confusa, cheia de termo técnico.",[2],0,89,null,null,null],["2026-10-29",0,0,2,2,0,3,"Banheiro limpinho, estrutura boa. Demorou dois meses pra conseguir vaga.",[1,2],0,64,null,null,null],["2026-10-29",0,0,0,2,0,3,"Saí sem saber como tomar a medicação.",[1,2],0,82,null,null,[[2],0]],["2026-10-29",2,1,4,1,1,5,"Consulta muito rápida, não deu pra perguntar nada. Passei a manhã inteira esperando com dor.",[0,2],0,74,null,0,null],["2026-10-29",1,1,4,0,0,2,"Saí entendendo direitinho como tomar o remédio. Falta bebedouro para os pacientes.",[2,4],0,92,null,0,null],["2026-10-29",0,1,4,3,1,4,"Muito tempo de espera e nenhuma previsão. Local ok.",[0,4],1,74,null,0,[[0,4],0]],["2026-10-29",0,2,2,2,0,5,"Saí sem saber como tomar a medicação. Me ligaram para confirmar a consulta, gostei.",[0,2],0,68,null,null,null],["2026-10-29",0,2,0,2,1,4,"O sistema de agendamento vive fora do ar.",[0,3],0,82,null,null,null],["2026-10-29",0,2,0,2,0,1,"Consulta muito rápida, não deu pra perguntar nada. Marcar demorou alguns dias.",[2,3],0,98,null,null,null],["2026-10-30",0,1,4,1,1,7,"Esperei uns 40 minutos, dentro do normal.",[0],1,88,null,0,null],["2026-10-30",0,1,0,1,0,9,"Banheiro limpinho, estrutura boa. Equipe correta, só isso.",[1,4],1,56,null,null,[[1,4],2]],["2026-10-30",0,2,0,3,0,10,"Me ligaram para confirmar a consulta, gostei.",[3],2,91,null,null,null],["2026-10-30",1,2,1,1,0,9,"Tiraram todas as minhas dúvidas. O agendamento funcionou, mas é burocrático.",[2,3],2,96,null,null,null],["2026-10-31",1,1,4,0,1,10,"Esperei pouco, tudo bem organizado.",[0],2,74,null,0,null],["2026-10-31",1,1,0,1,1,7,"O agendamento funcionou, mas é burocrático.",[3],1,89,null,null,null],["2026-10-31",2,1,4,0,0,3,"A recepcionista foi grossa e impaciente. Saí entendendo direitinho como tomar o remédio.",[1,2],0,78,null,0,[[1,2],0]],["2026-10-31",0,2,2,3,0,5,"Demorou dois meses pra conseguir vaga. Explicaram o básico.",[2,3],0,80,null,null,null],["2026-10-31",0,2,1,2,1,9,"O médico explicou tudo com calma.",[2],2,78,null,null,null]]};
+const TEMAS = DB.temas;
+const CURTO = {"UBS Centro":"UBS Centro","Pronto Atendimento Sul":"PA Sul","Clínica de Especialidades":"Clínica de Especialidades"};
+const SIGLA = {"UBS Centro":"UBS","Pronto Atendimento Sul":"PAS","Clínica de Especialidades":"CLE"};
+const ROWS = DB.linhas.map((a,i)=>({id:i+1, data:a[0], turno:DB.turnos[a[1]], u:DB.unidades[a[2]], tipo:DB.tipos[a[3]], faixa:DB.faixas[a[4]],
+  canal:DB.canais[a[5]], nota:a[6], txt:a[7], temas:a[8], sent:DB.sentimentos[a[9]], conf:a[10], v90:a[11], v7:a[12],
+  rev:a[13]?{temas:a[13][0], sent:DB.sentimentos[a[13][1]]}:null}));
+ROWS.forEach(r=>r.cod = codigo(r));
+function codigo(r){ return SIGLA[r.u]+"-"+String(10000+(r.id*7919)%89999); }
+const MES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const LIMITE90 = (()=>{ const d=new Date(DB.hoje+"T12:00:00"); d.setDate(d.getDate()-90); return d.toISOString().slice(0,10); })();
+
+/* ---------- estatística simples ---------- */
+const Z = 1.96;
+function Phi(z){ const t=1/(1+0.2316419*Math.abs(z)), d=0.3989423*Math.exp(-z*z/2);
+  const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274)))); return z>0?1-p:p; }
+const pval = z => 2*(1-Phi(Math.abs(z)));
+function npsOf(rs){ const n=rs.length; if(!n) return null;
+  const pp=rs.filter(r=>r.nota>=9).length/n, pd=rs.filter(r=>r.nota<=6).length/n, v=pp-pd;
+  const se=Math.sqrt(Math.max(0,(pp+pd-v*v)/n));
+  return {n, v:100*v, se:100*se, lo:Math.max(-100,100*(v-Z*se)), hi:Math.min(100,100*(v+Z*se))}; }
+function wilson(k,n){ if(!n) return {p:0,lo:0,hi:0,n:0}; const p=k/n, z2=Z*Z, den=1+z2/n, c=(p+z2/(2*n))/den,
+  h=Z*Math.sqrt(p*(1-p)/n+z2/(4*n*n))/den; return {p, lo:Math.max(0,c-h), hi:Math.min(1,c+h), n, k}; }
+function diffProp(k1,n1,k2,n2){ const p1=k1/n1, p2=k2/n2, pc=(k1+k2)/(n1+n2), s=Math.sqrt(pc*(1-pc)*(1/n1+1/n2));
+  const su=Math.sqrt(p1*(1-p1)/n1+p2*(1-p2)/n2), d=p1-p2;
+  return {p1,p2,d, lo:d-Z*su, hi:d+Z*su, p: s>0?pval(d/s):1, n1, n2}; }
+function diffNps(a,b){ const d=a.v-b.v, s=Math.sqrt(a.se*a.se+b.se*b.se); return {d, lo:d-Z*s, hi:d+Z*s, p:s>0?pval(d/s):1}; }
+function nivel(p,nmin){ if(nmin>=30 && p<0.01) return "firme"; if(nmin>=15 && p<0.05) return "indicio"; return null; }
+const P = x => Math.round(100*x)+"%";
+const pp = x => Math.round(100*x);
+const sg = v => { const r=Math.round(v); return (r>0?"+":r<0?"−":"")+Math.abs(r); };
+const sgn = v => { const r=Math.round(v); return (r<0?"−":"")+Math.abs(r); };
+const fmt = d => { const [y,m,dd]=d.split("-"); return `${dd}/${m}/${y}`; };
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const recl = (r,t) => r.sent==="negativo" && r.temas.includes(t);
+
+/* ---------- precisão do classificador (amostra revisada) ---------- */
+const REV = ROWS.filter(r=>r.rev);
+const PREC = TEMAS.map((_,t)=>{ const x=REV.filter(r=>r.temas.includes(t)); return {n:x.length, p:x.length? x.filter(r=>r.rev.temas.includes(t)).length/x.length : null}; });
+const ACC_SENT = REV.filter(r=>r.rev.sent===r.sent).length/REV.length;
+const ACC_TUDO = REV.filter(r=>r.rev.sent===r.sent && r.temas.every(t=>r.rev.temas.includes(t))).length/REV.length;
+
+/* ---------- abas ---------- */
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.v)));
+function showTab(v){
+  document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected", x.dataset.v===v));
+  document.querySelectorAll(".view").forEach(x=>x.classList.toggle("on", x.id==="v-"+v));
+  if(location.hash!=="#"+v) history.replaceState(null,"","#"+v);
+  if(v==="painel") render();
+}
+if(location.hash==="#pesquisa") showTab("pesquisa");
+window.addEventListener("hashchange",()=>{ if(location.hash==="#pesquisa"||location.hash==="#painel") showTab(location.hash.slice(1)); });
+
+/* ---------- pesquisa ---------- */
+const lUnid=document.getElementById("lUnid"), lTipo=document.getElementById("lTipo"), lInfo=document.getElementById("lInfo");
+DB.unidades.forEach(u=>lUnid.add(new Option(u,u)));
+const TIPOS_U = {"UBS Centro":["Consulta","Vacinação","Retorno","Exame"],"Pronto Atendimento Sul":["Urgência","Consulta"],"Clínica de Especialidades":["Consulta","Exame","Retorno"]};
+let link = {};
+function novoLink(){
+  const u=lUnid.value; const prev=lTipo.value;
+  lTipo.innerHTML=""; TIPOS_U[u].forEach(t=>lTipo.add(new Option(t,t))); if(TIPOS_U[u].includes(prev)) lTipo.value=prev;
+  const id=ROWS.length+1+Math.floor(Math.random()*900);
+  link = {u, tipo:lTipo.value, faixa:DB.faixas[Math.floor(Math.random()*4)], cod:SIGLA[u]+"-"+String(10000+(id*7919)%89999), data:DB.hoje,
+    turno: new Date().getHours()<12?"manhã":(new Date().getHours()<18?"tarde":"noite")};
+  lInfo.innerHTML = `<span>Código <b>${link.cod}</b></span><span>Data <b>${fmt(link.data)}</b></span><span>Faixa etária (cadastro) <b>${link.faixa}</b></span>`;
+}
+lUnid.addEventListener("change",novoLink); lTipo.addEventListener("change",()=>{link.tipo=lTipo.value;});
+novoLink();
+
+let nota=null;
+const scale=document.getElementById("scale"), coment=document.getElementById("coment"), enviar=document.getElementById("enviar");
+for(let i=0;i<=10;i++){ const b=document.createElement("button"); b.type="button"; b.textContent=i;
+  b.addEventListener("click",()=>{ setNota(i); check(); }); scale.appendChild(b); }
+function setNota(n){ nota=n; [...scale.children].forEach(c=>c.classList.toggle("sel",+c.textContent===n)); }
+coment.addEventListener("input",check);
+function check(){ enviar.disabled = nota===null || coment.value.trim().length<3; }
+const EXEMPLOS = [
+  [2,"Fiquei quase quatro horas esperando e a recepcionista ainda foi grossa comigo."],
+  [10,"A técnica de enfermagem foi um amor com meu filho na hora da vacina."],
+  [5,"O médico foi rápido demais e não entendi como tomar o antibiótico."],
+  [7,"Tudo certo."],
+];
+const ex=document.getElementById("examples");
+EXEMPLOS.forEach(([n,t])=>{ const b=document.createElement("button"); b.type="button"; b.textContent=`${n} · “${t}”`;
+  b.addEventListener("click",()=>{ setNota(n); coment.value=t; check(); }); ex.appendChild(b); });
+
+const CHAVES = [
+  ["esper","demor","fila","hora","previs","atras","chamad","rapidinho","pontual","horário"],
+  ["educad","gross","simpát","atencios","carinh","respeit","descaso","tratad","tratou","amor","gentil","impacien","recepcion"],
+  ["explic","entend","dúvid","duvid","orient","remédio","remedio","medica","antibi","resultado","rápido demais"],
+  ["marc","agend","vaga","telefone","ligu","remarc","whatsapp","confirm"],
+  ["limp","suj","banheiro","cadeira","estrutura","calor","ar-condicionado","bebedouro","ambiente"],
+];
+const NEG = ["não ","nao ","nunca","ninguém","ninguem","sujo","suja","gross","descaso","absurd","péssim","pessim","ruim","horrível","quebrad","falta","demais","quase quatro"];
+function classifica(texto,n){
+  const t=" "+texto.toLowerCase()+" ";
+  const pts=CHAVES.map((ks,i)=>({i, p:ks.filter(k=>t.includes(k)).length})).filter(x=>x.p>0).sort((a,b)=>b.p-a.p).slice(0,2);
+  const neg=NEG.some(k=>t.includes(k));
+  let s = n<=6 ? (neg||n<=4 ? "negativo" : "neutro") : (n>=9 ? (neg?"neutro":"positivo") : (neg?"negativo":"neutro"));
+  if(n>=7 && n<=8 && !neg && pts.length) s="positivo";
+  let conf = 50;
+  if(pts.length){ conf = 62 + 10*Math.min(2,pts[0].p) + (pts.length===1?6:0); }
+  const coerente = (s==="negativo"&&n<=6)||(s==="positivo"&&n>=7)||(s==="neutro"&&n>=5&&n<=8);
+  conf = Math.min(96, conf + (coerente?8:-14));
+  return {temas: pts.length? pts.map(x=>x.i) : [], sent:s, conf};
+}
+
+document.getElementById("form").addEventListener("submit",e=>{
+  e.preventDefault();
+  const texto=coment.value.trim(), n=nota, c=classifica(texto,n);
+  const r={id:ROWS.length+1, data:link.data, turno:link.turno, u:link.u, tipo:lTipo.value, faixa:link.faixa, canal:"QR code", nota:n, txt:texto,
+    temas:c.temas, sent:c.sent, conf:c.conf, v90:null, v7:null, rev:null, novo:true, cod:link.cod};
+  ROWS.push(r);
+  const temas = c.temas.length ? c.temas.map(t=>`<span class="chip tema">${TEMAS[t]}</span>`).join("") : `<span class="chip muted">sem tema identificado</span>`;
+  document.getElementById("result").innerHTML = `<div class="result">
+    <div class="k">Comentário · ${r.cod}</div><div style="margin-bottom:8px">“${esc(texto)}”</div>
+    <div class="chips">${temas}<span class="chip ${c.sent}">${c.sent}</span><span class="chip muted">nota ${n}</span></div>
+    <div class="k" style="margin-top:8px">Confiança: <b class="${c.conf<70?"low":""}">${c.conf}%</b>${c.conf<70?" · vai para a fila de revisão humana":""}</div>
+    <button class="ghost" type="button" style="margin-top:10px" id="verPainel">Ver no painel</button></div>`;
+  document.getElementById("verPainel").addEventListener("click",()=>showTab("painel"));
+  setNota(null); coment.value=""; check(); novoLink();
+});
+
+/* ---------- painel ---------- */
+const fUnid=document.getElementById("fUnid"), fPer=document.getElementById("fPer");
+fUnid.add(new Option("Todas as unidades","")); DB.unidades.forEach(u=>fUnid.add(new Option(u,u)));
+[fUnid,fPer].forEach(x=>x.addEventListener("change",render));
+document.getElementById("soBaixa").addEventListener("change",render);
+let temaSel = null;
+
+function noPeriodo(r){ return fPer.value==="3m" ? r.data>="2026-08-01" : true; }
+
+function render(){
+  const per = ROWS.filter(noPeriodo);
+  const sel = fUnid.value;
+  const rs = per.filter(r=>!sel||r.u===sel);
+
+  /* KPIs */
+  const meses = Object.keys(DB.atendimentos[DB.unidades[0]]).filter(m=>fPer.value!=="3m"||m>="2026-08");
+  const atend = (sel?[sel]:DB.unidades).reduce((s,u)=>s+meses.reduce((a,m)=>a+DB.atendimentos[u][m],0),0);
+  const nAt = rs.filter(r=>meses.includes(r.data.slice(0,7))).length;
+  document.getElementById("kN").textContent = rs.length;
+  const novos = rs.filter(r=>r.novo).length;
+  document.getElementById("kNh").innerHTML = `${(100*nAt/atend).toFixed(1).replace(".",",")}% dos ${atend.toLocaleString("pt-BR")} atendimentos responderam${novos?` · ${novos} enviada(s) agora`:""}`;
+  const N = npsOf(rs), kN=document.getElementById("kNps");
+  kN.textContent = N? sg(N.v) : "–";
+  kN.style.color = !N? "" : N.lo>0 ? "var(--good)" : (N.hi<0 ? "var(--bad)" : "var(--warn)");
+  document.getElementById("kNpsCi").textContent = N? `entre ${sgn(N.lo)} e ${sgn(N.hi)}` : "";
+  const neg = wilson(rs.filter(r=>r.sent==="negativo").length, rs.length);
+  document.getElementById("kNeg").textContent = P(neg.p);
+  document.getElementById("kNegCi").textContent = `entre ${pp(neg.lo)}% e ${pp(neg.hi)}%`;
+  document.getElementById("kIa").textContent = P(ACC_TUDO);
+  document.getElementById("kIah").textContent = `temas e sentimento certos em ${REV.length} comentários lidos por uma pessoa`;
+
+  conclusoes(per, sel, rs);
+  document.getElementById("forest").innerHTML = forest(per, sel);
+  document.getElementById("linha").innerHTML = linha(rs);
+  temasBloco(rs);
+  retorno(rs);
+  tabela(rs);
+}
+
+/* ---------- conclusões ---------- */
+function conclusoes(per, sel, rs){
+  const achados=[], quase=[], cuidados=[]; let testes=0;
+  const add = (lvl, frase, det, peso, tema) => {
+    if(tema!=null && PREC[tema].p!=null && PREC[tema].p<0.8 && lvl==="firme"){ lvl="indicio"; det += ` · rebaixado: o classificador acerta só ${P(PREC[tema].p)} neste tema`; }
+    if(lvl) achados.push({lvl,frase,det,peso}); };
+  const unids = sel? [sel] : DB.unidades;
+
+  // 1. NPS da unidade contra as demais
+  unids.forEach(u=>{
+    const a=npsOf(per.filter(r=>r.u===u)), b=npsOf(per.filter(r=>r.u!==u)); if(!a||!b) return; testes++;
+    const d=diffNps(a,b), lvl=nivel(d.p,Math.min(a.n,b.n));
+    const frase = `O NPS da ${CURTO[u]} (${sg(a.v)}) está ${d.d<0?"abaixo":"acima"} do das outras unidades (${sg(b.v)}).`;
+    const det = `diferença de ${sgn(d.d)} pontos, entre ${sgn(d.lo)} e ${sgn(d.hi)} · ${a.n} e ${b.n} respostas`;
+    if(lvl) add(lvl, frase, det, Math.abs(d.d)/2); else quase.push({frase:`A ${CURTO[u]} (${sg(a.v)}) parece diferente das demais (${sg(b.v)}), mas a diferença cabe na margem de erro.`, det, peso:Math.abs(d.d)});
+  });
+
+  // 2. tema com reclamação: unidade contra as demais
+  unids.forEach(u=>TEMAS.forEach((tn,t)=>{
+    const A=per.filter(r=>r.u===u), B=per.filter(r=>r.u!==u); if(A.length<15||B.length<15) return;
+    if(t===3 && A.filter(r=>r.tipo==="Urgência").length>A.length/2) return; // urgência não tem agendamento: comparação injusta
+    testes++;
+    const d=diffProp(A.filter(r=>recl(r,t)).length,A.length,B.filter(r=>recl(r,t)).length,B.length);
+    const lvl=nivel(d.p,Math.min(A.length,B.length));
+    const det=`${P(d.p1)} contra ${P(d.p2)} · diferença entre ${sgn(100*d.lo)} e ${sgn(100*d.hi)} pontos percentuais`;
+    if(lvl && d.d>0) add(lvl, `Reclamação de ${tn.toLowerCase()} pesa mais na ${CURTO[u]}: ${P(d.p1)} das respostas, contra ${P(d.p2)} nas outras unidades.`, det, 100*d.d, t);
+    else if(lvl && d.d<0) add(lvl, `${tn} é ponto forte da ${CURTO[u]}: ${P(d.p1)} das respostas reclamam disso, contra ${P(d.p2)} nas outras.`, det, 70*Math.abs(d.d), t);
+    else if(d.d>0.06) quase.push({frase:`${tn} parece incomodar mais na ${CURTO[u]} (${P(d.p1)} contra ${P(d.p2)}), mas ainda pode ser acaso.`, det, peso:100*d.d});
+  }));
+
+  // 3. faixa etária × tema, dentro do filtro
+  DB.faixas.forEach(f=>TEMAS.forEach((tn,t)=>{
+    const A=rs.filter(r=>r.faixa===f), B=rs.filter(r=>r.faixa!==f); if(A.length<15||B.length<15) return; testes++;
+    const d=diffProp(A.filter(r=>recl(r,t)).length,A.length,B.filter(r=>recl(r,t)).length,B.length);
+    const lvl=nivel(d.p,Math.min(A.length,B.length));
+    const det=`${P(d.p1)} contra ${P(d.p2)} · ${A.length} e ${B.length} respostas`;
+    if(lvl && d.d>0) add(lvl, `Pacientes de ${f} anos reclamam mais de ${tn.toLowerCase()}: ${P(d.p1)}, contra ${P(d.p2)} nas outras idades${sel?` (${CURTO[sel]})`:""}.`, det, 100*d.d, t);
+    else if(!lvl && d.d>0.08 && A.length<60) quase.push({frase:`Quem tem ${f} anos parece reclamar mais de ${tn.toLowerCase()} (${P(d.p1)} contra ${P(d.p2)}), mas são só ${A.length} respostas.`, det, peso:100*d.d});
+  }));
+
+  // 4. retorno eletivo: promotores x detratores
+  const el = rs.filter(r=>r.tipo!=="Urgência" && r.v90!=null);
+  const pr=el.filter(r=>r.nota>=9), de=el.filter(r=>r.nota<=6);
+  if(pr.length>=10 && de.length>=10){ testes++;
+    const d=diffProp(pr.filter(r=>r.v90).length,pr.length,de.filter(r=>r.v90).length,de.length), lvl=nivel(d.p,Math.min(pr.length,de.length));
+    const frase=`Quem dá nota 9 ou 10 volta mais em até 90 dias (${P(d.p1)}) do que quem dá 0 a 6 (${P(d.p2)}).`;
+    const det=`${pr.length} e ${de.length} atendimentos eletivos até ${fmt(LIMITE90)} · associação, não causa`;
+    if(lvl && d.d>0) add(lvl, frase, det, 100*d.d); else quase.push({frase: Math.abs(d.d)<0.05 ? `Promotores e detratores voltam em proporções parecidas (${P(d.p1)} e ${P(d.p2)}); não dá para dizer que a nota acompanha o retorno.` : `Quem dá nota 9 ou 10 parece voltar ${d.d>0?"mais":"menos"} (${P(d.p1)} contra ${P(d.p2)}), mas com ${pr.length} e ${de.length} atendimentos ainda pode ser acaso.`, det, peso:30});
+  }
+
+  // 5. urgência: reclamou da explicação -> voltou em 7 dias
+  const ug = rs.filter(r=>r.tipo==="Urgência" && r.v7!=null);
+  const ex=ug.filter(r=>recl(r,2)), ou=ug.filter(r=>!recl(r,2));
+  if(ex.length>=10 && ou.length>=10){ testes++;
+    const d=diffProp(ex.filter(r=>r.v7).length,ex.length,ou.filter(r=>r.v7).length,ou.length), lvl=nivel(d.p,Math.min(ex.length,ou.length));
+    const frase=`Na urgência, quem reclamou da explicação recebida volta mais em 7 dias (${P(d.p1)}) do que os demais (${P(d.p2)}).`;
+    const det=`${ex.length} e ${ou.length} atendimentos · vale revisar como as orientações de alta são passadas`;
+    if(lvl && d.d>0) add(lvl, frase, det, 100*d.d+10, 2); else quase.push({frase:`Quem reclama da explicação parece voltar mais à urgência (${P(d.p1)} contra ${P(d.p2)}), mas ainda pode ser acaso.`, det, peso:100*d.d});
+  }
+
+  // 6. tendência: último mês contra os anteriores
+  const ms=[...new Set(rs.filter(r=>!r.novo).map(r=>r.data.slice(0,7)))].sort(); const ult=ms[ms.length-1];
+  if(ms.length>=2){ testes++;
+    const a=npsOf(rs.filter(r=>!r.novo&&r.data.startsWith(ult))), b=npsOf(rs.filter(r=>!r.novo&&!r.data.startsWith(ult)));
+    const d=diffNps(a,b), lvl=nivel(d.p,Math.min(a.n,b.n)), nm=MES[+ult.slice(5)-1];
+    const det=`${nm}: ${sg(a.v)} (${a.n} respostas) · antes: ${sg(b.v)} (${b.n}) · diferença entre ${sgn(d.lo)} e ${sgn(d.hi)}`;
+    if(lvl) add(lvl, `O NPS de ${nm} (${sg(a.v)}) ${d.d>0?"melhorou":"piorou"} em relação aos meses anteriores (${sg(b.v)}).`, det, Math.abs(d.d)/2);
+    else quase.unshift({frase:`O NPS de ${nm} (${sg(a.v)}) ${Math.abs(d.d)<3?"ficou igual ao":(d.d>0?"subiu em relação ao":"caiu em relação ao")} dos meses anteriores (${sg(b.v)}), mas a mudança cabe na margem de erro. Não dá para falar em ${d.d>=0?"melhora":"piora"}.`, det, peso:999});
+  }
+
+  // cuidados
+  const meses = Object.keys(DB.atendimentos[DB.unidades[0]]).filter(m=>fPer.value!=="3m"||m>="2026-08");
+  unids.forEach(u=>{
+    const at=meses.reduce((a,m)=>a+DB.atendimentos[u][m],0), n=per.filter(r=>r.u===u && meses.includes(r.data.slice(0,7))).length, tx=n/at;
+    if(tx<0.04) cuidados.push({frase:`Só ${(100*tx).toFixed(1).replace(".",",")}% dos atendimentos da ${CURTO[u]} responderam. Quem responde costuma ser quem gostou muito ou não gostou nada, então o resultado pode não representar a unidade.`, det:`${n} respostas para ${at.toLocaleString("pt-BR")} atendimentos · divulgar o QR code no balcão ajuda`});
+  });
+  TEMAS.forEach((tn,t)=>{ if(PREC[t].p!=null && PREC[t].p<0.8) cuidados.push({frase:`Quando o classificador marca “${tn}”, acerta ${P(PREC[t].p)} das vezes. Leia alguns comentários antes de agir sobre esse tema.`, det:`${PREC[t].n} casos na amostra revisada · o modelo precisa de mais exemplos desse tema`}); });
+  const baixa = rs.filter(r=>r.conf<70).length;
+  if(baixa) cuidados.push({frase:`${baixa} comentários (${P(baixa/rs.length)}) têm confiança abaixo de 70% e esperam revisão humana.`, det:"use o filtro da tabela de comentários"});
+  if(fPer.value==="3m" || rs.some(r=>r.data>LIMITE90)) cuidados.push({frase:`O retorno em 90 dias só existe para atendimentos até ${fmt(LIMITE90)}; os mais recentes ainda não completaram o prazo.`, det:"por isso o recorte de ago a out tem pouca informação de retorno"});
+
+  achados.sort((a,b)=>(a.lvl===b.lvl?0:a.lvl==="firme"?-1:1) || b.peso-a.peso);
+  quase.sort((a,b)=>b.peso-a.peso);
+  const item = (cls,lab,x)=>`<li><span class="lvl ${cls}">${lab}</span><div><p>${x.frase}</p><p class="det">${x.det}</p></div></li>`;
+  document.getElementById("achados").innerHTML = achados.length ? achados.slice(0,7).map(x=>item(x.lvl, x.lvl==="firme"?"Firme":"Indício", x)).join("")
+    : `<li><span class="lvl nao">Nada</span><div><p>Nenhuma diferença passou no teste neste recorte.</p><p class="det">Com poucas respostas, só diferenças grandes aparecem.</p></div></li>`;
+  document.getElementById("naoDa").innerHTML = quase.slice(0,3).map(x=>item("nao","Incerto",x)).join("") || `<li><span class="lvl nao">—</span><div><p class="det">Nada a destacar.</p></div></li>`;
+  document.getElementById("cuidados").innerHTML = cuidados.map(x=>item("cuidado","Atenção",x)).join("") || `<li><span class="lvl nao">—</span><div><p class="det">Nada a destacar.</p></div></li>`;
+  const fa=(testes*0.01).toFixed(1).replace(".",",");
+  document.getElementById("nTestes").innerHTML = `<b>Firme</b>: pelo menos 30 respostas em cada grupo e chance menor que 1% de a diferença ser acaso. <b>Indício</b>: pelo menos 15 respostas e chance menor que 5%; vale acompanhar. Neste recorte foram feitas ${testes} comparações, então é de se esperar cerca de ${fa} falso alarme entre as conclusões firmes.`;
+}
+
+/* ---------- gráficos ---------- */
+function forest(per, sel){
+  const grupos = [...DB.unidades.map(u=>({lab:CURTO[u], s:npsOf(per.filter(r=>r.u===u)), on:!sel||sel===u})), {lab:"Todas", s:npsOf(per), on:!sel, tot:true}];
+  const ok=grupos.filter(g=>g.s); const lo=Math.max(-100,Math.min(0,Math.floor(Math.min(...ok.map(g=>g.s.lo))/20)*20)), hi=Math.min(100,Math.max(0,Math.ceil(Math.max(...ok.map(g=>g.s.hi))/20)*20));
+  const W=520, L=150, R=60, rowH=42, T=10, H=T+rowH*grupos.length+26;
+  const x=v=>L+(v-lo)*(W-L-R)/(hi-lo);
+  const ticks=[]; for(let v=lo; v<=hi; v+=20) ticks.push(v);
+  let g=""; ticks.forEach(v=>{ g+=`<line x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H-24}" stroke="var(--line)" ${v?'stroke-dasharray="3 3"':""}/><text x="${x(v)}" y="${H-8}" text-anchor="middle">${sgn(v)}</text>`; });
+  grupos.forEach((gr,i)=>{ if(!gr.s) return; const y=T+rowH*i+rowH/2, op=gr.on?1:.35, poucas=gr.s.n<30;
+    g+=`<g opacity="${op}"><text class="lab" x="0" y="${y-2}">${gr.lab}</text><text x="0" y="${y+14}">${gr.s.n} respostas</text>
+      <line x1="${x(gr.s.lo)}" x2="${x(gr.s.hi)}" y1="${y}" y2="${y}" stroke="${gr.tot?"var(--ink)":"var(--accent)"}" stroke-width="6" stroke-linecap="round" opacity=".3"/>
+      <circle cx="${x(gr.s.v)}" cy="${y}" r="6" fill="${poucas?"var(--surface)":(gr.tot?"var(--ink)":"var(--accent)")}" stroke="${gr.tot?"var(--ink)":"var(--accent)"}" stroke-width="2"/>
+      <text class="lab" x="${W-R+10}" y="${y+4}">${sg(gr.s.v)}</text></g>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="NPS por unidade com margem de erro">${g}</svg>`;
+}
+function linha(rs){
+  const ms=[...new Set(rs.map(r=>r.data.slice(0,7)))].sort();
+  const pts=ms.map(m=>({m, s:npsOf(rs.filter(r=>r.data.startsWith(m)))})).filter(p=>p.s.n>=10);
+  if(pts.length<2) return `<p class="note">Poucos meses com respostas suficientes.</p>`;
+  const lo=Math.max(-100,Math.floor(Math.min(...pts.map(p=>p.s.lo))/20)*20), hi=Math.min(100,Math.ceil(Math.max(...pts.map(p=>p.s.hi))/20)*20);
+  const W=520,H=210,L=38,R=16,T=16,B=28;
+  const x=i=>L+i*(W-L-R)/(pts.length-1), y=v=>T+(hi-v)*(H-T-B)/(hi-lo||1);
+  let g=""; for(let v=lo; v<=hi; v+=20) g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" ${v?'stroke-dasharray="3 3"':""}/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${sgn(v)}</text>`;
+  const band=pts.map((p,i)=>`${i?"L":"M"}${x(i)},${y(p.s.hi)}`).join(" ")+" "+pts.map((p,i)=>`L${x(pts.length-1-i)},${y(pts[pts.length-1-i].s.lo)}`).join(" ")+" Z";
+  const d=pts.map((p,i)=>`${i?"L":"M"}${x(i)},${y(p.s.v)}`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="NPS por mês com margem de erro">${g}
+    <path d="${band}" fill="var(--accent)" opacity=".14"/><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+    ${pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.s.v)}" r="${i===pts.length-1?5:4}" fill="${p.s.n<30?"var(--surface)":"var(--accent)"}" stroke="var(--accent)" stroke-width="2"><title>${sg(p.s.v)} (entre ${sgn(p.s.lo)} e ${sgn(p.s.hi)}; ${p.s.n} respostas)</title></circle>
+      <text x="${x(i)}" y="${H-8}" text-anchor="middle">${MES[+p.m.slice(5)-1]}</text>
+      <text class="lab" x="${x(i)}" y="${y(p.s.v)-10}" text-anchor="middle">${sg(p.s.v)}</text>`).join("")}</svg>`;
+}
+function temasBloco(rs){
+  const por = TEMAS.map((tn,t)=>{ const x=rs.filter(r=>r.temas.includes(t));
+    return {t,tn,n:x.length,neg:x.filter(r=>r.sent==="negativo").length,neu:x.filter(r=>r.sent==="neutro").length}; }).sort((a,b)=>b.neg-a.neg);
+  const max=Math.max(...por.map(p=>p.n),1);
+  const box=document.getElementById("temas");
+  box.innerHTML = por.map(p=>{ const pr=PREC[p.t].p; return `<button type="button" class="tbar" data-t="${p.t}" aria-pressed="${temaSel===p.t}">
+    <span>${p.tn}<small>${p.neg} reclamações · IA acerta ${pr==null?"–":P(pr)}${pr!=null&&pr<.8?" ⚠":""}</small></span>
+    <span class="track" style="width:${Math.max(4,100*p.n/max)}%"><i style="width:${p.n?100*p.neg/p.n:0}%;background:var(--bad)"></i><i style="width:${p.n?100*p.neu/p.n:0}%;background:var(--warn)"></i><i style="flex:1;background:var(--good)"></i></span>
+    <span class="num">${p.n}</span></button>`; }).join("");
+  box.querySelectorAll(".tbar").forEach(b=>b.addEventListener("click",()=>{ const t=+b.dataset.t; temaSel = temaSel===t?null:t; temasBloco(rs); }));
+  const am=document.getElementById("amostra");
+  if(temaSel==null){ am.innerHTML=""; return; }
+  const ex=rs.filter(r=>r.temas.includes(temaSel)).sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
+  am.innerHTML = `<p class="note" style="margin:0">Exemplos recentes de “${TEMAS[temaSel]}”:</p>`+ex.map(r=>`<div><span class="chip ${r.sent}">${r.sent}</span> “${esc(r.txt)}” <span class="muted">· ${CURTO[r.u]}, nota ${r.nota}</span></div>`).join("");
+}
+function barCI(lab, w, cor){
+  if(!w.n) return `<div class="bar2"><span>${lab}</span><span class="muted">sem dados</span></div>`;
+  const W=420,L=150,R=56,H=30, x=v=>L+v*(W-L-R);
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${lab}: ${P(w.p)}">
+    <rect x="${L}" y="9" width="${W-L-R}" height="12" rx="3" fill="var(--bg)" stroke="var(--line)"/>
+    <rect x="${L}" y="9" width="${x(w.p)-L}" height="12" rx="3" fill="${cor}" opacity=".85"/>
+    <line x1="${x(w.lo)}" x2="${x(w.hi)}" y1="15" y2="15" stroke="var(--ink)" stroke-width="1.5"/>
+    <line x1="${x(w.lo)}" x2="${x(w.lo)}" y1="10" y2="20" stroke="var(--ink)" stroke-width="1.5"/><line x1="${x(w.hi)}" x2="${x(w.hi)}" y1="10" y2="20" stroke="var(--ink)" stroke-width="1.5"/>
+    <text class="lab" x="0" y="14">${lab}</text><text x="0" y="27">${w.n} atendimentos</text>
+    <text class="lab" x="${W-R+8}" y="20">${P(w.p)}</text></svg>`;
+}
+function retorno(rs){
+  const el=rs.filter(r=>r.tipo!=="Urgência" && r.v90!=null);
+  const cats=[["Nota 9–10",r=>r.nota>=9,"var(--good)"],["Nota 7–8",r=>r.nota>=7&&r.nota<=8,"var(--warn)"],["Nota 0–6",r=>r.nota<=6,"var(--bad)"]];
+  document.getElementById("retEletivo").innerHTML = el.length<20 ? `<p class="note">Poucos atendimentos eletivos com 90 dias completos neste recorte (${el.length}).</p>`
+    : cats.map(([l,f,c])=>{ const x=el.filter(f); return barCI(l, wilson(x.filter(r=>r.v90).length,x.length), c); }).join("");
+  const ug=rs.filter(r=>r.tipo==="Urgência" && r.v7!=null);
+  document.getElementById("retUrg").innerHTML = !ug.length ? `<p class="note">Sem atendimentos de urgência nesta unidade.</p>`
+    : [["Reclamou da explicação",r=>recl(r,2),"var(--bad)"],["Demais pacientes",r=>!recl(r,2),"var(--muted)"]].map(([l,f,c])=>{ const x=ug.filter(f); return barCI(l, wilson(x.filter(r=>r.v7).length,x.length), c); }).join("");
+}
+function tabela(rs){
+  const so=document.getElementById("soBaixa").checked;
+  const rec=[...rs].filter(r=>!so||r.conf<70).sort((a,b)=>(b.novo?1:0)-(a.novo?1:0) || b.data.localeCompare(a.data) || b.id-a.id).slice(0,15);
+  document.getElementById("tabela").innerHTML = rec.map(r=>`<tr class="${r.novo?"new":""}"><td>${fmt(r.data)}</td><td class="cod">${r.cod}</td><td>${CURTO[r.u]}</td><td class="n">${r.nota}</td>
+    <td>${esc(r.txt)}</td><td><div class="chips">${r.temas.map(t=>`<span class="chip tema">${TEMAS[t]}</span>`).join("")||'<span class="muted">—</span>'}</div></td>
+    <td><span class="chip ${r.sent}">${r.sent}</span></td><td class="n ${r.conf<70?"low":""}">${r.conf}%</td></tr>`).join("");
+}
+
+document.getElementById("copyCsv").addEventListener("click", async e=>{
+  const cols=["codigo","data","turno","unidade","tipo","faixa","canal","nota","comentario","temas_ia","sentimento_ia","confianca_ia","voltou_90d","voltou_urg_7d"];
+  const lin=ROWS.map(r=>[r.cod,r.data,r.turno,r.u,r.tipo,r.faixa,r.canal,r.nota,r.txt.replace(/;/g,","),r.temas.map(t=>TEMAS[t]).join("|"),r.sent,r.conf,r.v90??"",r.v7??""].join(";"));
+  const csv=[cols.join(";"),...lin].join("\n");
+  try{ await navigator.clipboard.writeText(csv); e.target.textContent="CSV copiado"; }catch(_){ e.target.textContent="Não foi possível copiar"; }
+  setTimeout(()=>e.target.textContent="Copiar base em CSV",2000);
+});
+
+render();
+</script>
+
+</body>
+</html>
